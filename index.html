@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global Explore — Personalised Travel Planning</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0f1117;
+    --paper: #f8f5ef;
+    --gold: #c9a84c;
+    --gold-light: #e8d5a3;
+    --mist: #e8e4dc;
+    --text-secondary: #6b6560;
+    --white: #ffffff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--paper); color: var(--ink); overflow-x: hidden; }
+
+  /* NAV */
+  .lang-bar { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 14px 64px; background: rgba(248,245,239,0.94); backdrop-filter: blur(12px); border-bottom: 1px solid var(--mist); }
+  .logo { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 600; letter-spacing: 0.08em; color: var(--ink); text-decoration: none; }
+  .logo span { color: var(--gold); }
+  .nav-right { display: flex; align-items: center; gap: 32px; }
+  .nav-link { font-size: 13px; color: var(--text-secondary); text-decoration: none; letter-spacing: 0.04em; transition: color 0.2s; }
+  .nav-link:hover { color: var(--ink); }
+  .lang-toggle { display: flex; gap: 4px; background: var(--mist); border-radius: 20px; padding: 4px; }
+  .lang-btn { padding: 6px 16px; border: none; background: transparent; border-radius: 16px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s; color: var(--text-secondary); }
+  .lang-btn.active { background: var(--ink); color: var(--white); }
+
+  /* TRUST BAR */
+  .trust-bar { position: fixed; top: 53px; left: 0; right: 0; z-index: 99; background: var(--ink); display: flex; justify-content: center; align-items: center; padding: 10px 64px; font-size: 12px; letter-spacing: 0.04em; }
+  .trust-bar-item { display: flex; align-items: center; gap: 8px; color: rgba(255,255,255,0.6); }
+  .trust-bar-item svg { color: var(--gold); flex-shrink: 0; }
+  .trust-bar-item strong { color: var(--white); font-weight: 500; }
+
+  /* HERO */
+  .hero { min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; padding-top: 93px; }
+  .hero-left { display: flex; flex-direction: column; justify-content: center; padding: 80px 64px 80px 80px; position: relative; }
+  .hero-left::after { content: ''; position: absolute; top: 10%; bottom: 10%; right: 0; width: 1px; background: linear-gradient(to bottom, transparent, var(--gold-light), transparent); }
+  .eyebrow { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); margin-bottom: 24px; font-weight: 500; }
+  .hero-title { font-family: 'Cormorant Garamond', serif; font-size: clamp(44px, 5vw, 68px); font-weight: 300; line-height: 1.08; color: var(--ink); margin-bottom: 24px; }
+  .hero-title em { font-style: italic; color: var(--gold); }
+  .hero-desc { font-size: 16px; line-height: 1.75; color: var(--text-secondary); max-width: 420px; margin-bottom: 40px; font-weight: 300; }
+  .hero-cta { display: inline-flex; align-items: center; gap: 12px; background: var(--ink); color: var(--white); padding: 16px 36px; border-radius: 2px; text-decoration: none; font-size: 14px; font-weight: 500; letter-spacing: 0.06em; transition: all 0.3s; width: fit-content; }
+  .hero-cta:hover { background: var(--gold); }
+  .hero-cta svg { transition: transform 0.3s; }
+  .hero-cta:hover svg { transform: translateX(4px); }
+  .hero-stats { display: flex; gap: 40px; margin-top: 56px; padding-top: 36px; border-top: 1px solid var(--mist); }
+  .stat-num { font-family: 'Cormorant Garamond', serif; font-size: 34px; font-weight: 600; color: var(--ink); line-height: 1; }
+  .stat-label { font-size: 12px; color: var(--text-secondary); margin-top: 4px; letter-spacing: 0.04em; }
+
+  .hero-right { position: relative; overflow: hidden; background: var(--ink); }
+  .hero-map-bg { position: absolute; inset: 0; background: radial-gradient(ellipse at 30% 50%, rgba(201,168,76,0.15) 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, rgba(201,168,76,0.08) 0%, transparent 50%); }
+  .hero-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(201,168,76,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(201,168,76,0.06) 1px, transparent 1px); background-size: 40px 40px; }
+  .hero-card { position: absolute; background: rgba(248,245,239,0.06); border: 1px solid rgba(201,168,76,0.2); border-radius: 4px; backdrop-filter: blur(4px); padding: 20px 24px; color: var(--white); }
+  .card-flight { top: 14%; left: 8%; right: 8%; }
+  .card-itinerary { bottom: 14%; left: 8%; right: 8%; }
+  .card-label { font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold); margin-bottom: 12px; }
+  .price-calendar { display: flex; gap: 6px; margin-top: 4px; }
+  .cal-day { flex: 1; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 2px; padding: 6px 4px; text-align: center; font-size: 10px; color: rgba(255,255,255,0.4); }
+  .cal-day.best { background: rgba(201,168,76,0.15); border-color: rgba(201,168,76,0.4); color: var(--gold); }
+  .cal-day .cal-price { font-size: 11px; font-weight: 500; margin-top: 2px; }
+  .price-row { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); }
+  .price-tag { font-family: 'Cormorant Garamond', serif; font-size: 30px; color: var(--gold); }
+  .price-note { font-size: 11px; color: rgba(255,255,255,0.4); }
+  .day-list { display: flex; flex-direction: column; gap: 10px; }
+  .day-item { display: flex; align-items: center; gap: 12px; font-size: 13px; color: rgba(255,255,255,0.7); }
+  .day-num { width: 24px; height: 24px; border-radius: 50%; background: rgba(201,168,76,0.15); border: 1px solid rgba(201,168,76,0.4); display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--gold); flex-shrink: 0; }
+
+  /* SECTIONS */
+  .section { padding: 120px 80px; }
+  .section-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 80px; }
+  .section-title { font-family: 'Cormorant Garamond', serif; font-size: clamp(36px, 4vw, 52px); font-weight: 300; line-height: 1.1; }
+  .section-title em { font-style: italic; color: var(--gold); }
+  .section-subtitle { font-size: 14px; color: var(--text-secondary); max-width: 300px; text-align: right; line-height: 1.7; }
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; }
+  .step { background: var(--white); padding: 40px 32px; transition: transform 0.3s; }
+  .step:hover { transform: translateY(-4px); }
+  .step-num { font-family: 'Cormorant Garamond', serif; font-size: 64px; font-weight: 300; color: var(--mist); line-height: 1; margin-bottom: 20px; }
+  .step-icon { width: 44px; height: 44px; background: var(--ink); border-radius: 2px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
+  .step-title { font-size: 15px; font-weight: 500; margin-bottom: 10px; }
+  .step-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.7; }
+
+  /* FORM */
+  .form-section { background: var(--ink); padding: 120px 80px; position: relative; overflow: hidden; }
+  .form-section::before { content: ''; position: absolute; top: -200px; right: -200px; width: 600px; height: 600px; border-radius: 50%; background: radial-gradient(circle, rgba(201,168,76,0.08) 0%, transparent 70%); pointer-events: none; }
+  .form-grid { display: grid; grid-template-columns: 340px 1fr; gap: 80px; align-items: start; }
+  .form-intro { color: var(--white); position: sticky; top: 110px; }
+  .form-intro .eyebrow { color: var(--gold); }
+  .form-intro .section-title { color: var(--white); }
+  .form-intro .section-title em { color: var(--gold); }
+  .form-intro > p { margin-top: 24px; font-size: 15px; line-height: 1.8; color: rgba(255,255,255,0.5); }
+  .form-trust { margin-top: 40px; display: flex; flex-direction: column; gap: 18px; }
+  .trust-item { display: flex; align-items: flex-start; gap: 14px; }
+  .trust-icon { width: 34px; height: 34px; border: 1px solid rgba(201,168,76,0.3); border-radius: 2px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+  .trust-text { font-size: 13px; color: rgba(255,255,255,0.45); line-height: 1.65; }
+  .trust-text strong { color: rgba(255,255,255,0.8); font-weight: 500; display: block; margin-bottom: 3px; font-size: 14px; }
+
+  /* FORM FIELDS */
+  .plan-form { display: flex; flex-direction: column; gap: 0; }
+
+  /* FORM BLOCK */
+  .form-block { padding: 28px 0; border-bottom: 1px solid rgba(255,255,255,0.07); display: flex; flex-direction: column; gap: 16px; }
+  .form-block:last-of-type { border-bottom: none; }
+  .block-title { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); font-weight: 500; margin-bottom: 4px; display: flex; align-items: center; gap: 10px; }
+  .block-title::after { content: ''; flex: 1; height: 1px; background: rgba(201,168,76,0.2); }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .field { display: flex; flex-direction: column; gap: 8px; }
+  .field label { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.4); font-weight: 500; }
+  .field .label-note { font-size: 10px; color: rgba(201,168,76,0.7); letter-spacing: 0.03em; text-transform: none; font-weight: 400; display: block; margin-top: 2px; line-height: 1.5; }
+  .field input, .field select, .field textarea { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 2px; padding: 14px 16px; color: var(--white); font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; transition: border-color 0.2s; width: 100%; }
+  .field input::placeholder, .field textarea::placeholder { color: rgba(255,255,255,0.22); }
+  .field select option { background: #1a1c24; color: var(--white); }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--gold); }
+  .field textarea { resize: vertical; min-height: 90px; }
+
+  /* TRAVELLERS */
+  .traveller-section { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; padding: 20px; }
+  .traveller-title { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.35); margin-bottom: 16px; font-weight: 500; }
+  .counter-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .counter-row:last-child { border-bottom: none; }
+  .counter-label { font-size: 14px; color: rgba(255,255,255,0.75); }
+  .counter-sublabel { font-size: 11px; color: rgba(255,255,255,0.3); margin-top: 2px; }
+  .counter-controls { display: flex; align-items: center; gap: 16px; }
+  .counter-btn { width: 30px; height: 30px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2); background: transparent; color: var(--white); cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; line-height: 1; }
+  .counter-btn:hover { border-color: var(--gold); color: var(--gold); }
+  .counter-val { font-size: 20px; font-family: 'Cormorant Garamond', serif; color: var(--white); min-width: 20px; text-align: center; }
+
+  .checkbox-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; cursor: pointer; }
+  .checkbox-row input[type="checkbox"] { display: none; }
+  .custom-check { width: 18px; height: 18px; border: 1px solid rgba(255,255,255,0.2); border-radius: 2px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; }
+  .checkbox-row input:checked + .custom-check { background: var(--gold); border-color: var(--gold); }
+  .custom-check::after { content: '✓'; font-size: 11px; color: var(--ink); opacity: 0; transition: opacity 0.2s; }
+  .checkbox-row input:checked + .custom-check::after { opacity: 1; }
+  .check-label { font-size: 14px; color: rgba(255,255,255,0.7); }
+
+  /* CHIP GRIDS */
+  .chip-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .chip-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .chip { padding: 11px 8px; border: 1px solid rgba(255,255,255,0.1); border-radius: 2px; text-align: center; font-size: 12px; color: rgba(255,255,255,0.5); cursor: pointer; transition: all 0.2s; user-select: none; letter-spacing: 0.03em; line-height: 1.4; }
+  .chip:hover { border-color: rgba(201,168,76,0.5); color: rgba(255,255,255,0.85); }
+  .chip.selected { border-color: var(--gold); color: var(--gold); background: rgba(201,168,76,0.08); }
+  .chip.single-select.selected { background: rgba(201,168,76,0.12); }
+
+  /* ANCHORS */
+  .anchor-list { display: flex; flex-direction: column; gap: 12px; }
+  .anchor-item { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 16px; position: relative; }
+  .anchor-item .anchor-num { font-family: 'Cormorant Garamond', serif; font-size: 11px; color: var(--gold); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 12px; }
+  .anchor-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .anchor-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .anchor-remove { position: absolute; top: 12px; right: 12px; width: 24px; height: 24px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.15); background: transparent; color: rgba(255,255,255,0.4); cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; line-height: 1; }
+  .anchor-remove:hover { border-color: #e05555; color: #e05555; }
+  .add-anchor-btn { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border: 1px dashed rgba(201,168,76,0.3); border-radius: 2px; background: transparent; color: rgba(201,168,76,0.7); font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.2s; width: 100%; letter-spacing: 0.04em; }
+  .add-anchor-btn:hover { border-color: var(--gold); color: var(--gold); background: rgba(201,168,76,0.05); }
+
+  .anchor-field label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.35); font-weight: 500; display: block; margin-bottom: 6px; }
+  .anchor-field input, .anchor-field select { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 2px; padding: 10px 12px; color: var(--white); font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; transition: border-color 0.2s; width: 100%; }
+  .anchor-field input::placeholder { color: rgba(255,255,255,0.2); }
+  .anchor-field select option { background: #1a1c24; }
+  .anchor-field input:focus, .anchor-field select:focus { border-color: var(--gold); }
+
+  .anchor-hint { font-size: 12px; color: rgba(255,255,255,0.25); line-height: 1.6; margin-top: 4px; }
+
+  /* SUBMIT */
+  .submit-btn { background: var(--gold); color: var(--ink); border: none; padding: 18px 48px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; border-radius: 2px; transition: all 0.3s; width: 100%; margin-top: 16px; }
+  .submit-btn:hover { background: var(--gold-light); transform: translateY(-1px); }
+  .submit-btn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+
+  /* FEATURES */
+  .features { padding: 120px 80px; background: var(--white); }
+  .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; margin-top: 80px; }
+  .feature-card { padding: 48px 40px; background: var(--paper); border-top: 3px solid transparent; transition: border-color 0.3s; }
+  .feature-card:hover { border-color: var(--gold); }
+  .feature-icon-wrap { width: 48px; height: 48px; border: 1px solid var(--mist); border-radius: 2px; display: flex; align-items: center; justify-content: center; margin-bottom: 28px; }
+  .feature-title { font-size: 17px; font-weight: 500; margin-bottom: 12px; }
+  .feature-desc { font-size: 14px; color: var(--text-secondary); line-height: 1.75; }
+
+  /* FOOTER */
+  footer { background: var(--ink); color: rgba(255,255,255,0.35); padding: 48px 80px 32px; }
+  .footer-main { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
+  footer .logo { color: var(--white); font-size: 18px; }
+  .footer-copy { font-size: 13px; }
+  .disclaimer { border-top: 1px solid rgba(255,255,255,0.08); padding-top: 24px; font-size: 11px; line-height: 1.8; color: rgba(255,255,255,0.22); max-width: 900px; }
+  .disclaimer strong { color: rgba(255,255,255,0.35); font-weight: 500; }
+
+  /* MULTILANG */
+  .lang-en .zh { display: none; }
+  .lang-zh .en { display: none; }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  .hero-left > * { animation: fadeUp 0.7s ease both; }
+  .hero-left > *:nth-child(1) { animation-delay: 0.1s; }
+  .hero-left > *:nth-child(2) { animation-delay: 0.2s; }
+  .hero-left > *:nth-child(3) { animation-delay: 0.3s; }
+  .hero-left > *:nth-child(4) { animation-delay: 0.4s; }
+  .hero-left > *:nth-child(5) { animation-delay: 0.5s; }
+
+  @media (max-width: 960px) {
+    .hero { grid-template-columns: 1fr; padding-top: 110px; }
+    .hero-right { display: none; }
+    .hero-left { padding: 60px 24px; }
+    .lang-bar { padding: 14px 24px; }
+    .trust-bar { padding: 10px 24px; font-size: 11px; }
+    .nav-link { display: none; }
+    .section { padding: 80px 24px; }
+    .steps { grid-template-columns: 1fr 1fr; }
+    .form-section { padding: 80px 24px; }
+    .form-grid { grid-template-columns: 1fr; gap: 48px; }
+    .form-intro { position: static; }
+    .features { padding: 80px 24px; }
+    .feature-grid { grid-template-columns: 1fr; }
+    footer { padding: 32px 24px 24px; }
+    .footer-main { flex-direction: column; gap: 12px; text-align: center; }
+    .form-row, .anchor-row, .anchor-row-3 { grid-template-columns: 1fr; }
+    .chip-grid-3, .chip-grid-2 { grid-template-columns: repeat(2, 1fr); }
+    .section-header { flex-direction: column; align-items: flex-start; gap: 16px; }
+    .section-subtitle { text-align: left; max-width: 100%; }
+    .hero-stats { gap: 24px; flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body class="lang-en">
+
+<nav class="lang-bar">
+  <a href="#" class="logo">Global <span>Explore</span></a>
+  <div class="nav-right">
+    <a href="#how" class="nav-link en">How It Works</a>
+    <a href="#how" class="nav-link zh">服务流程</a>
+    <a href="#plan" class="nav-link en">Plan a Trip</a>
+    <a href="#plan" class="nav-link zh">开始规划</a>
+    <div class="lang-toggle">
+      <button class="lang-btn active" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" onclick="setLang('zh')">中文</button>
+    </div>
+  </div>
+</nav>
+
+<div class="trust-bar">
+  <div class="trust-bar-item">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    <span class="en"><strong>Free to use</strong> · We receive a commission from airlines and hotels when you book · Your price is never marked up</span>
+    <span class="zh"><strong>对用户完全免费</strong> · 当你完成预订时我们从航空公司或酒店收取佣金 · 你支付的永远是官方原价</span>
+  </div>
+</div>
+
+<section class="hero">
+  <div class="hero-left">
+    <p class="eyebrow en">Personalised Travel Planning</p>
+    <p class="eyebrow zh">专业旅行规划服务</p>
+    <h1 class="hero-title en">Stop Searching.<br><em>Start Travelling.</em></h1>
+    <h1 class="hero-title zh">不用再到处搜索，<br><em>专心期待出发。</em></h1>
+    <p class="hero-desc en">Most travellers spend 4–6 hours switching between apps just to plan one trip. Tell us once — we search hundreds of providers in real time and deliver a complete, day-by-day itinerary built around your group.</p>
+    <p class="hero-desc zh">大多数旅行者要花4-6小时在各种平台之间反复切换。只需填一次表，我们实时搜索数百家平台，为你们生成完整的个性化行程。</p>
+    <a href="#plan" class="hero-cta">
+      <span class="en">Plan My Trip</span><span class="zh">开始规划</span>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </a>
+    <div class="hero-stats">
+      <div><div class="stat-num">500+</div><div class="stat-label en">Airlines Covered</div><div class="stat-label zh">覆盖航空公司</div></div>
+      <div><div class="stat-num">±3</div><div class="stat-label en">Day Price Compare</div><div class="stat-label zh">前后三天自动比价</div></div>
+      <div><div class="stat-num">5 min</div><div class="stat-label en">From form to full plan</div><div class="stat-label zh">从填表到完整行程</div></div>
+    </div>
+  </div>
+  <div class="hero-right">
+    <div class="hero-map-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-card card-flight">
+      <div class="card-label">±3 Day Price Comparison — Melbourne to Tokyo</div>
+      <div class="price-calendar">
+        <div class="cal-day"><div>Jun 18</div><div class="cal-price">$710</div></div>
+        <div class="cal-day"><div>Jun 19</div><div class="cal-price">$695</div></div>
+        <div class="cal-day best"><div>Jun 20 ★</div><div class="cal-price">$620</div></div>
+        <div class="cal-day"><div>Jun 21</div><div class="cal-price">$648</div></div>
+        <div class="cal-day"><div>Jun 22</div><div class="cal-price">$680</div></div>
+        <div class="cal-day"><div>Jun 23</div><div class="cal-price">$730</div></div>
+        <div class="cal-day"><div>Jun 24</div><div class="cal-price">$705</div></div>
+      </div>
+      <div class="price-row">
+        <div><div class="price-tag">A$620</div><div class="price-note">Best fare · Direct · Economy</div></div>
+        <div style="font-size:11px;color:rgba(201,168,76,0.7);text-align:right;">Saving $90<br>vs original date</div>
+      </div>
+    </div>
+    <div class="hero-card card-itinerary">
+      <div class="card-label">7-Day Itinerary — Tokyo + Osaka</div>
+      <div class="day-list">
+        <div class="day-item"><div class="day-num">1</div><span>Arrive Tokyo · Shinjuku check-in · Local dinner</span></div>
+        <div class="day-item"><div class="day-num">4</div><span>Shinkansen to Osaka · Dotonbori evening</span></div>
+        <div class="day-item"><div class="day-num">6</div><span>Concert day · Osaka Castle morning</span></div>
+        <div class="day-item" style="opacity:0.4;"><div class="day-num">+</div><span>Full 10-day plan included</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="section" id="how">
+  <div class="section-header">
+    <h2 class="section-title en">How It<br><em>Works</em></h2>
+    <h2 class="section-title zh">服务<br><em>流程</em></h2>
+    <p class="section-subtitle en">From a blank page to a complete travel plan in under five minutes.</p>
+    <p class="section-subtitle zh">从零开始，五分钟内生成完整行程方案。</p>
+  </div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c9a84c" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+      <div class="step-num">01</div>
+      <div class="step-title en">Tell Us About Your Group</div><div class="step-title zh">填写出行信息</div>
+      <div class="step-desc en">Destinations, dates, who's travelling, fixed plans you already have, and your preferences. One form, a few minutes.</div>
+      <div class="step-desc zh">目的地、日期、出行人员、已有的固定安排和个人偏好，一张表格，几分钟完成。</div>
+    </div>
+    <div class="step">
+      <div class="step-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c9a84c" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></div>
+      <div class="step-num">02</div>
+      <div class="step-title en">We Search Across Platforms</div><div class="step-title zh">全平台实时搜索</div>
+      <div class="step-desc en">Flights from 500+ airlines, hotels from Booking, Agoda and Expedia, activities from Viator — all live, including ±3 day fare comparisons.</div>
+      <div class="step-desc zh">500+航空公司、多平台酒店、当地活动，全部实时数据，含前后三天自动比价。</div>
+    </div>
+    <div class="step">
+      <div class="step-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c9a84c" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+      <div class="step-num">03</div>
+      <div class="step-title en">We Build Around Your Anchors</div><div class="step-title zh">围绕你的固定安排规划</div>
+      <div class="step-desc en">Already have a concert, flight or hotel booked? We plan everything else around your fixed points — no conflicts, no wasted days.</div>
+      <div class="step-desc zh">已经订了演唱会、机票或酒店？我们围绕你的固定安排填充行程，不冲突，不浪费。</div>
+    </div>
+    <div class="step">
+      <div class="step-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c9a84c" stroke-width="1.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
+      <div class="step-num">04</div>
+      <div class="step-title en">Book Directly, Your Way</div><div class="step-title zh">自主选择预订</div>
+      <div class="step-desc en">Every recommendation links directly to the airline or hotel. Book wherever you feel most comfortable — the price you see is what you pay.</div>
+      <div class="step-desc zh">每项推荐均直链官方平台，在你最放心的渠道预订，看到的价格就是你支付的价格。</div>
+    </div>
+  </div>
+</section>
+
+<!-- PLAN FORM -->
+<section class="form-section" id="plan">
+  <div class="form-grid">
+    <div class="form-intro">
+      <p class="eyebrow en">Plan Your Trip</p>
+      <p class="eyebrow zh">开始规划</p>
+      <h2 class="section-title en">Tell Us About<br>Your <em>Journey</em></h2>
+      <h2 class="section-title zh">告诉我们你的<br><em>旅行计划</em></h2>
+      <p class="en">The more you tell us, the better your itinerary. Fill in every section — it takes about five minutes and makes a significant difference to the quality of your plan.</p>
+      <p class="zh">你告诉我们的越详细，行程就越精准。请填写每个部分，大约需要五分钟，对最终行程质量有显著影响。</p>
+      <div class="form-trust">
+        <div class="trust-item">
+          <div class="trust-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c9a84c" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+          <div class="trust-text">
+            <strong class="en">Your price is never marked up</strong><strong class="zh">你支付的永远是官方原价</strong>
+            <span class="en">We receive a commission from airlines and hotels when you book. This keeps the service free — your price stays exactly the same.</span>
+            <span class="zh">当你完成预订时我们收取佣金，这让服务对你免费，你的价格丝毫不变。</span>
+          </div>
+        </div>
+        <div class="trust-item">
+          <div class="trust-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c9a84c" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+          <div class="trust-text">
+            <strong class="en">Real-time pricing, every search</strong><strong class="zh">每次搜索均为实时价格</strong>
+            <span class="en">No cached fares. Every result is pulled live.</span>
+            <span class="zh">无缓存价格，每次结果均实时拉取。</span>
+          </div>
+        </div>
+        <div class="trust-item">
+          <div class="trust-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c9a84c" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+          <div class="trust-text">
+            <strong class="en">Your data is private</strong><strong class="zh">你的数据完全私密</strong>
+            <span class="en">We use your details only to build your itinerary. We never sell or share your personal information.</span>
+            <span class="zh">你的信息仅用于生成行程，我们绝不出售或共享你的个人信息。</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <form class="plan-form" onsubmit="handleSubmit(event)">
+
+      <!-- BLOCK 1: BASICS -->
+      <div class="form-block">
+        <div class="block-title en">Departure & Destination</div>
+        <div class="block-title zh">出发与目的地</div>
+        <div class="form-row">
+          <div class="field">
+            <label><span class="en">Departing From</span><span class="zh">出发城市</span></label>
+            <input type="text" placeholder="e.g. Melbourne, Sydney" required>
+          </div>
+          <div class="field">
+            <label>
+              <span class="en">Main Destination</span><span class="zh">主要目的地</span>
+              <span class="label-note en">Not sure yet? Write "Help me choose" and tell us your interests below</span>
+              <span class="label-note zh">还没确定？写"帮我推荐"，在下方告诉我们你的偏好</span>
+            </label>
+            <input type="text" placeholder="e.g. Japan, Tokyo, or Help me choose" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label>
+              <span class="en">Departure Date</span><span class="zh">出发日期</span>
+              <span class="label-note en">We will also compare fares ±3 days around this date</span>
+              <span class="label-note zh">我们将自动对比此日期前后各三天的机票价格</span>
+            </label>
+            <input type="date" required>
+          </div>
+          <div class="field">
+            <label><span class="en">Return Date</span><span class="zh">返回日期</span></label>
+            <input type="date" required>
+          </div>
+        </div>
+        <div class="field">
+          <label><span class="en">Have you been to this destination before?</span><span class="zh">你去过这个目的地吗？</span></label>
+          <select required>
+            <option value="">Select</option>
+            <option value="never">Never been — show me the highlights</option>
+            <option value="once">Been once — ready to go deeper</option>
+            <option value="multiple">Been multiple times — skip the tourist trail</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- BLOCK 2: TRAVELLERS -->
+      <div class="form-block">
+        <div class="block-title en">Who Is Travelling</div>
+        <div class="block-title zh">出行人员</div>
+        <div class="traveller-section">
+          <div class="counter-row">
+            <div><div class="counter-label en">Adults</div><div class="counter-label zh">成人</div><div class="counter-sublabel en">Age 18–59</div><div class="counter-sublabel zh">18–59岁</div></div>
+            <div class="counter-controls"><button type="button" class="counter-btn" onclick="adjustCount('adults',-1)">−</button><span class="counter-val" id="adults">1</span><button type="button" class="counter-btn" onclick="adjustCount('adults',1)">+</button></div>
+          </div>
+          <div class="counter-row">
+            <div><div class="counter-label en">Children</div><div class="counter-label zh">儿童</div><div class="counter-sublabel en">Age 2–17</div><div class="counter-sublabel zh">2–17岁</div></div>
+            <div class="counter-controls"><button type="button" class="counter-btn" onclick="adjustCount('children',-1)">−</button><span class="counter-val" id="children">0</span><button type="button" class="counter-btn" onclick="adjustCount('children',1)">+</button></div>
+          </div>
+          <div id="childAgesRow" style="display:none;padding:10px 0 2px;">
+            <div class="field"><label><span class="en">Children's Ages (comma separated)</span><span class="zh">每位儿童年龄（逗号分隔）</span></label><input type="text" placeholder="e.g. 3, 7, 12"></div>
+          </div>
+          <div class="counter-row">
+            <div><div class="counter-label en">Infants</div><div class="counter-label zh">婴儿</div><div class="counter-sublabel en">Under 2 years</div><div class="counter-sublabel zh">2岁以下</div></div>
+            <div class="counter-controls"><button type="button" class="counter-btn" onclick="adjustCount('infants',-1)">−</button><span class="counter-val" id="infants">0</span><button type="button" class="counter-btn" onclick="adjustCount('infants',1)">+</button></div>
+          </div>
+          <div id="infantNeeds" style="display:none;padding-top:8px;">
+            <div class="checkbox-row" onclick="toggleCheck(this)"><input type="checkbox"><div class="custom-check"></div><span class="check-label en">Cot or crib required at hotel</span><span class="check-label zh">酒店需要婴儿床</span></div>
+            <div class="checkbox-row" onclick="toggleCheck(this)"><input type="checkbox"><div class="custom-check"></div><span class="check-label en">Pram-friendly venues preferred</span><span class="check-label zh">优先推车友好的景点</span></div>
+          </div>
+          <div class="counter-row">
+            <div><div class="counter-label en">Seniors</div><div class="counter-label zh">老人</div><div class="counter-sublabel en">Age 60+</div><div class="counter-sublabel zh">60岁以上</div></div>
+            <div class="counter-controls"><button type="button" class="counter-btn" onclick="adjustCount('seniors',-1)">−</button><span class="counter-val" id="seniors">0</span><button type="button" class="counter-btn" onclick="adjustCount('seniors',1)">+</button></div>
+          </div>
+          <div id="seniorAgesRow" style="display:none;padding:10px 0 2px;">
+            <div class="field"><label><span class="en">Seniors' Ages (comma separated)</span><span class="zh">每位老人年龄（逗号分隔）</span></label><input type="text" placeholder="e.g. 68, 72"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BLOCK 3: FIXED PLANS / ANCHORS -->
+      <div class="form-block">
+        <div class="block-title en">Fixed Plans &amp; Anchor Points</div>
+        <div class="block-title zh">已确定的安排</div>
+        <p class="anchor-hint en">Do you already have flights, hotels, concerts, or other fixed commitments booked? Add them here and we will plan everything else around them.</p>
+        <p class="anchor-hint zh">你是否已经订好了机票、酒店、演唱会或其他固定安排？在这里添加，我们会围绕这些节点规划其余行程。</p>
+        <div class="anchor-list" id="anchorList"></div>
+        <button type="button" class="add-anchor-btn" onclick="addAnchor()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span class="en">Add a fixed plan or commitment</span>
+          <span class="zh">添加一个固定安排</span>
+        </button>
+      </div>
+
+      <!-- BLOCK 4: BUDGET & FLIGHTS -->
+      <div class="form-block">
+        <div class="block-title en">Budget &amp; Flights</div>
+        <div class="block-title zh">预算与航班</div>
+        <div class="form-row">
+          <div class="field">
+            <label><span class="en">Total Trip Budget (AUD)</span><span class="zh">总预算（澳元）</span></label>
+            <select required><option value="">Select range</option><option>Under $2,000</option><option>$2,000 – $5,000</option><option>$5,000 – $10,000</option><option>$10,000 – $20,000</option><option>$20,000+</option></select>
+          </div>
+          <div class="field">
+            <label><span class="en">Shopping Budget (separate from above)</span><span class="zh">购物预算（独立于总预算）</span></label>
+            <select><option value="">Not a priority</option><option>Under $500</option><option>$500 – $2,000</option><option>$2,000 – $5,000</option><option>$5,000+</option></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label><span class="en">Flight Preference</span><span class="zh">航班偏好</span></label>
+            <select required><option value="">Select</option><option>Cheapest price</option><option>Direct flights only</option><option>Fastest total time</option><option>Best value overall</option></select>
+          </div>
+          <div class="field">
+            <label><span class="en">Travel Class</span><span class="zh">舱位</span></label>
+            <select required><option value="">Select</option><option>Economy</option><option>Premium Economy</option><option>Business</option><option>First Class</option></select>
+          </div>
+        </div>
+      </div>
+
+      <!-- BLOCK 5: ACCOMMODATION -->
+      <div class="form-block">
+        <div class="block-title en">Accommodation</div>
+        <div class="block-title zh">住宿</div>
+        <div class="form-row">
+          <div class="field">
+            <label><span class="en">Accommodation Level</span><span class="zh">住宿档次</span></label>
+            <select required><option value="">Select</option><option>Budget (1–2 star)</option><option>Comfort (3 star)</option><option>Superior (4 star)</option><option>Luxury (5 star)</option></select>
+          </div>
+          <div class="field">
+            <label><span class="en">Accommodation Type</span><span class="zh">住宿类型</span></label>
+            <select><option value="">No preference</option><option>Hotel (chain / branded)</option><option>Boutique hotel</option><option>Serviced apartment</option><option>Airbnb / homestay</option><option>Resort</option></select>
+          </div>
+        </div>
+        <div class="field">
+          <label><span class="en">Preferred Location</span><span class="zh">住宿位置偏好</span></label>
+          <select>
+            <option value="">No preference</option>
+            <option>City centre — walking distance to main attractions</option>
+            <option>Near specific attraction or venue</option>
+            <option>Quieter area away from crowds</option>
+            <option>Near airport (for late arrival / early departure)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- BLOCK 6: TRIP STYLE -->
+      <div class="form-block">
+        <div class="block-title en">Trip Style &amp; Pace</div>
+        <div class="block-title zh">旅行风格与节奏</div>
+
+        <div class="field">
+          <label><span class="en">Primary Purpose of This Trip</span><span class="zh">此次旅行的主要目的</span></label>
+          <div class="chip-grid-3" id="purposeChips">
+            <div class="chip single-select" onclick="selectSingle(this,'purpose')">Pure holiday &amp; relaxation</div>
+            <div class="chip single-select" onclick="selectSingle(this,'purpose')">Cultural exploration</div>
+            <div class="chip single-select" onclick="selectSingle(this,'purpose')">Family bonding</div>
+            <div class="chip single-select" onclick="selectSingle(this,'purpose')">Honeymoon / romantic</div>
+            <div class="chip single-select" onclick="selectSingle(this,'purpose')">Birthday / anniversary</div>
+            <div class="chip single-select" onclick="selectSingle(this,'purpose')">Concert / event trip</div>
+            <div class="chip single-select" onclick="selectSingle(this,'purpose')">Food &amp; dining focus</div>
+            <div class="chip single-select" onclick="selectSingle(this,'purpose')">Adventure &amp; outdoors</div>
+            <div class="chip single-select" onclick="selectSingle(this,'purpose')">Shopping trip</div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label><span class="en">Daily Pace — how much do you want to fit in each day?</span><span class="zh">每日节奏——你希望每天安排多少活动？</span></label>
+          <div class="chip-grid-3" id="paceChips">
+            <div class="chip single-select" onclick="selectSingle(this,'pace')">
+              <div style="font-weight:500" class="en">Relaxed</div>
+              <div style="font-weight:500" class="zh">轻松</div>
+              <div style="font-size:11px;margin-top:4px;opacity:0.7" class="en">1–2 things per day, plenty of downtime</div>
+              <div style="font-size:11px;margin-top:4px;opacity:0.7" class="zh">每天1-2项活动，大量休闲时间</div>
+            </div>
+            <div class="chip single-select" onclick="selectSingle(this,'pace')">
+              <div style="font-weight:500" class="en">Balanced</div>
+              <div style="font-weight:500" class="zh">适中</div>
+              <div style="font-size:11px;margin-top:4px;opacity:0.7" class="en">3–4 things per day with rest built in</div>
+              <div style="font-size:11px;margin-top:4px;opacity:0.7" class="zh">每天3-4项活动，含休息时间</div>
+            </div>
+            <div class="chip single-select" onclick="selectSingle(this,'pace')">
+              <div style="font-weight:500" class="en">Full</div>
+              <div style="font-weight:500" class="zh">充实</div>
+              <div style="font-size:11px;margin-top:4px;opacity:0.7" class="en">5–6 things per day, maximise every hour</div>
+              <div style="font-size:11px;margin-top:4px;opacity:0.7" class="zh">每天5-6项活动，充分利用每一小时</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label><span class="en">Travel Style — select all that apply</span><span class="zh">旅行偏好（可多选）</span></label>
+          <div class="chip-grid-3">
+            <div class="chip" onclick="toggleChip(this)">Culture &amp; History</div>
+            <div class="chip" onclick="toggleChip(this)">Food &amp; Dining</div>
+            <div class="chip" onclick="toggleChip(this)">Beach &amp; Relaxation</div>
+            <div class="chip" onclick="toggleChip(this)">Outdoors &amp; Hiking</div>
+            <div class="chip" onclick="toggleChip(this)">Shopping</div>
+            <div class="chip" onclick="toggleChip(this)">Family Activities</div>
+            <div class="chip" onclick="toggleChip(this)">Romantic Experiences</div>
+            <div class="chip" onclick="toggleChip(this)">Adventure Sports</div>
+            <div class="chip" onclick="toggleChip(this)">Sightseeing &amp; Photography</div>
+            <div class="chip" onclick="toggleChip(this)">Nightlife</div>
+            <div class="chip" onclick="toggleChip(this)">Wellness &amp; Spa</div>
+            <div class="chip" onclick="toggleChip(this)">Local Markets</div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label><span class="en">Attitude Towards Crowds &amp; Popular Spots</span><span class="zh">对热门景点和人群的态度</span></label>
+          <div class="chip-grid-3" id="crowdChips">
+            <div class="chip single-select" onclick="selectSingle(this,'crowd')">
+              <span class="en">Happy to queue for the classics</span>
+              <span class="zh">愿意排队参观经典景点</span>
+            </div>
+            <div class="chip single-select" onclick="selectSingle(this,'crowd')">
+              <span class="en">Mix of popular and off-the-beaten-path</span>
+              <span class="zh">热门与冷门各半</span>
+            </div>
+            <div class="chip single-select" onclick="selectSingle(this,'crowd')">
+              <span class="en">Prefer hidden gems, avoid tourist crowds</span>
+              <span class="zh">偏好冷门去处，避开旅游人群</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BLOCK 7: TRANSPORT & LOGISTICS -->
+      <div class="form-block">
+        <div class="block-title en">Transport &amp; Logistics</div>
+        <div class="block-title zh">交通与出行方式</div>
+        <div class="field">
+          <label><span class="en">Preferred Transport Within Destination</span><span class="zh">目的地内交通偏好</span></label>
+          <div class="chip-grid-3" id="transportChips">
+            <div class="chip single-select" onclick="selectSingle(this,'transport')">
+              <span class="en">Public transport (metro, bus, train)</span>
+              <span class="zh">公共交通（地铁、巴士、火车）</span>
+            </div>
+            <div class="chip single-select" onclick="selectSingle(this,'transport')">
+              <span class="en">Taxis &amp; rideshare (Uber etc.)</span>
+              <span class="zh">出租车和网约车</span>
+            </div>
+            <div class="chip single-select" onclick="selectSingle(this,'transport')">
+              <span class="en">Rental car — I prefer to drive</span>
+              <span class="zh">租车自驾</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BLOCK 8: DIETARY & SPECIAL -->
+      <div class="form-block">
+        <div class="block-title en">Dietary &amp; Special Requirements</div>
+        <div class="block-title zh">饮食与特殊需求</div>
+        <div class="form-row">
+          <div class="field">
+            <label><span class="en">Dietary Requirements</span><span class="zh">饮食要求</span></label>
+            <select><option>No restrictions</option><option>Vegetarian</option><option>Vegan</option><option>Halal</option><option>Kosher</option><option>Gluten-free</option><option>Other (specify below)</option></select>
+          </div>
+          <div class="field">
+            <label><span class="en">Is Shopping a Major Part of This Trip?</span><span class="zh">购物是此次旅行的重要部分吗？</span></label>
+            <select><option value="no">Not really</option><option value="some">Somewhat — a few hours here and there</option><option value="yes">Yes — dedicate serious time to it</option></select>
+          </div>
+        </div>
+        <div class="field">
+          <label><span class="en">Special Requests &amp; Anything Else We Should Know</span><span class="zh">特殊需求及其他备注</span></label>
+          <textarea placeholder="Wheelchair accessibility, mobility limitations, celebrating a special occasion, food allergies, fear of heights, preferred neighbourhoods, anything that will help us plan better…"></textarea>
+        </div>
+      </div>
+
+      <!-- BLOCK 9: CONTACT -->
+      <div class="form-block">
+        <div class="block-title en">Where to Send Your Plan</div>
+        <div class="block-title zh">接收行程方案</div>
+        <div class="field">
+          <label><span class="en">Your Email Address</span><span class="zh">电子邮箱</span></label>
+          <input type="email" placeholder="your@email.com" required>
+        </div>
+      </div>
+
+      <button type="submit" class="submit-btn" id="submitBtn">
+        <span class="en">Generate My Itinerary</span>
+        <span class="zh">生成我的行程方案</span>
+      </button>
+    </form>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+  <div class="section-header">
+    <h2 class="section-title en">Why Choose<br><em>Global Explore</em></h2>
+    <h2 class="section-title zh">为什么选择<br><em>Global Explore</em></h2>
+    <p class="section-subtitle en">Built for real travellers who want genuine value, not just another search box.</p>
+    <p class="section-subtitle zh">为真正的旅行者而建，提供真实价值，而非又一个搜索工具。</p>
+  </div>
+  <div class="feature-grid">
+    <div class="feature-card">
+      <div class="feature-icon-wrap"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0f1117" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+      <div class="feature-title en">±3 Day Price Calendar</div><div class="feature-title zh">前后三天价格日历</div>
+      <div class="feature-desc en">We compare fares three days either side of your chosen date — often saving $50–200 for a small shift in travel day.</div>
+      <div class="feature-desc zh">自动对比出发日期前后三天价格，调整一两天出行日期往往能节省数百元。</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon-wrap"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0f1117" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></div>
+      <div class="feature-title en">Anchor-Based Multi-City Planning</div><div class="feature-title zh">锚点式多城市行程</div>
+      <div class="feature-desc en">Already have a concert, hotel or flight locked in? Tell us your fixed points and we plan intelligently around them — across multiple cities.</div>
+      <div class="feature-desc zh">已订演唱会、酒店或机票？告诉我们固定节点，我们围绕这些智能规划多城市行程。</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon-wrap"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0f1117" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+      <div class="feature-title en">Tailored for Every Group</div><div class="feature-title zh">为每个群体量身定制</div>
+      <div class="feature-desc en">Infants, children, seniors — ages, needs and pace all factored in automatically for a realistic, enjoyable plan for everyone.</div>
+      <div class="feature-desc zh">婴儿、儿童、老人，年龄、需求和节奏全部自动纳入规划，确保每个人都满意。</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon-wrap"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0f1117" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></div>
+      <div class="feature-title en">Multi-Platform Search</div><div class="feature-title zh">多平台全网搜索</div>
+      <div class="feature-desc en">Flights, hotels and activities from hundreds of providers compared side by side — not just one platform's inventory.</div>
+      <div class="feature-desc zh">数百家平台机票、酒店、活动同步对比，呈现全网最优结果。</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon-wrap"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0f1117" stroke-width="1.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
+      <div class="feature-title en">Direct Booking Links</div><div class="feature-title zh">直达预订链接</div>
+      <div class="feature-desc en">Every recommendation links directly to the airline, hotel or activity provider. Book wherever you feel most comfortable.</div>
+      <div class="feature-desc zh">每项推荐均直链官方平台，在你最放心的渠道完成预订。</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon-wrap"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0f1117" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+      <div class="feature-title en">Downloadable Itinerary</div><div class="feature-title zh">可下载行程文件</div>
+      <div class="feature-desc en">Export your complete plan as a PDF — perfect for travelling without data or sharing with your group.</div>
+      <div class="feature-desc zh">将完整行程导出为PDF，无网络也可查阅，也方便与同行人分享。</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-main">
+    <a href="#" class="logo">Global <span>Explore</span></a>
+    <span class="footer-copy en">© 2026 Global Explore. Personalised travel planning. Melbourne, Australia.</span>
+    <span class="footer-copy zh">© 2026 Global Explore · 专业旅行规划服务 · 澳大利亚墨尔本</span>
+  </div>
+  <div class="disclaimer">
+    <strong class="en">Disclaimer — </strong>
+    <span class="en">Global Explore provides travel planning information for reference purposes only. All flight, hotel and activity prices are sourced from third-party providers and may change without notice. We are not responsible for any booking decisions, pricing discrepancies, or changes made by airlines, hotels or activity operators. Users are advised to verify all details directly with the relevant provider before making any booking. Global Explore accepts no liability for any loss, damage or inconvenience arising from the use of information provided on this platform.</span>
+    <strong class="zh">免责声明 — </strong>
+    <span class="zh">Global Explore 提供的旅行规划信息仅供参考。所有机票、酒店及活动价格均来源于第三方平台，可能随时变动，恕不另行通知。我们对任何预订决定、价格差异或由航空公司、酒店及活动运营商所做的变更概不负责。建议用户在完成任何预订前直接向相关服务商核实所有信息。Global Explore 对因使用本平台所提供信息而导致的任何损失、损害或不便概不承担责任。</span>
+  </div>
+</footer>
+
+<script>
+  function setLang(lang) {
+    document.body.className = 'lang-' + lang;
+    document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.lang-btn[onclick="setLang('${lang}')"]`).classList.add('active');
+  }
+
+  const counts = { adults: 1, children: 0, infants: 0, seniors: 0 };
+  function adjustCount(type, delta) {
+    counts[type] = Math.max(0, counts[type] + delta);
+    if (type === 'adults') counts[type] = Math.max(1, counts[type]);
+    document.getElementById(type).textContent = counts[type];
+    document.getElementById('childAgesRow').style.display = counts.children > 0 ? 'block' : 'none';
+    document.getElementById('infantNeeds').style.display = counts.infants > 0 ? 'block' : 'none';
+    document.getElementById('seniorAgesRow').style.display = counts.seniors > 0 ? 'block' : 'none';
+  }
+
+  function toggleChip(el) { el.classList.toggle('selected'); }
+
+  function selectSingle(el, group) {
+    el.closest('form').querySelectorAll(`.chip[onclick*="${group}"]`).forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+  }
+
+  function toggleCheck(row) { const cb = row.querySelector('input[type="checkbox"]'); cb.checked = !cb.checked; }
+
+  // ANCHOR SYSTEM
+  let anchorCount = 0;
+  function addAnchor() {
+    anchorCount++;
+    const isZh = document.body.classList.contains('lang-zh');
+    const div = document.createElement('div');
+    div.className = 'anchor-item';
+    div.id = 'anchor-' + anchorCount;
+    div.innerHTML = `
+      <div class="anchor-num en">Fixed Plan #${anchorCount}</div>
+      <div class="anchor-num zh">固定安排 #${anchorCount}</div>
+      <button type="button" class="anchor-remove" onclick="removeAnchor('anchor-${anchorCount}')" title="Remove">×</button>
+      <div class="anchor-row" style="margin-bottom:10px;">
+        <div class="anchor-field">
+          <label><span class="en">City / Location</span><span class="zh">城市/地点</span></label>
+          <input type="text" placeholder="e.g. Osaka, Tokyo">
+        </div>
+        <div class="anchor-field">
+          <label><span class="en">Date</span><span class="zh">日期</span></label>
+          <input type="date">
+        </div>
+      </div>
+      <div class="anchor-row">
+        <div class="anchor-field">
+          <label><span class="en">Type of Commitment</span><span class="zh">安排类型</span></label>
+          <select>
+            <option value="">Select type</option>
+            <option>Flight (already booked)</option>
+            <option>Hotel (already booked)</option>
+            <option>Concert / Show / Event</option>
+            <option>Tour or activity booked</option>
+            <option>Meeting / appointment</option>
+            <option>Other fixed plan</option>
+          </select>
+        </div>
+        <div class="anchor-field">
+          <label><span class="en">Notes (optional)</span><span class="zh">备注（选填）</span></label>
+          <input type="text" placeholder="e.g. Evening concert, need to be there by 7pm">
+        </div>
+      </div>
+    `;
+    document.getElementById('anchorList').appendChild(div);
+    // apply current language classes
+    div.querySelectorAll('.en').forEach(el => { if(document.body.classList.contains('lang-zh')) el.style.display='none'; });
+    div.querySelectorAll('.zh').forEach(el => { if(document.body.classList.contains('lang-en')) el.style.display='none'; });
+  }
+
+  function removeAnchor(id) {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    const btn = document.getElementById('submitBtn');
+    const isZh = document.body.classList.contains('lang-zh');
+    btn.textContent = isZh ? '正在搜索，请稍候…' : 'Searching across providers…';
+    btn.disabled = true;
+    setTimeout(() => {
+      btn.textContent = isZh ? '行程方案已发送至您的邮箱，请查收。' : 'Your itinerary is on its way — please check your email.';
+    }, 2500);
+  }
+</script>
+</body>
+</html>
