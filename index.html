@@ -37,7 +37,7 @@
   .trust-bar-item strong { color: var(--white); font-weight: 500; }
 
   /* HERO */
-  .hero { min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; padding-top: 93px; }
+  .hero { min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; padding-top: var(--header-height, 120px); }
   .hero-left { display: flex; flex-direction: column; justify-content: center; padding: 80px 64px 80px 80px; position: relative; }
   .hero-left::after { content: ''; position: absolute; top: 10%; bottom: 10%; right: 0; width: 1px; background: linear-gradient(to bottom, transparent, var(--gold-light), transparent); }
   .eyebrow { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); margin-bottom: 24px; font-weight: 500; }
@@ -724,6 +724,18 @@
 </footer>
 
 <script>
+  function setHeaderHeight() {
+    const nav = document.querySelector('.lang-bar');
+    const trust = document.querySelector('.trust-bar');
+    if (nav && trust) {
+      const total = nav.offsetHeight + trust.offsetHeight;
+      document.documentElement.style.setProperty('--header-height', total + 'px');
+      document.querySelector('.trust-bar').style.top = nav.offsetHeight + 'px';
+    }
+  }
+  window.addEventListener('load', setHeaderHeight);
+  window.addEventListener('resize', setHeaderHeight);
+
   function setLang(lang) {
     document.body.className = 'lang-' + lang;
     document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
