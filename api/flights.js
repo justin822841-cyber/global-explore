@@ -10,34 +10,72 @@ export default async function handler(req, res) {
   }
 
   const token = process.env.AVIASALES_TOKEN;
-  const marker = process.env.AVIASALES_MARKER;
 
-  // Search ±3 days around the requested date
+  // Generate ±3 days date range
   const dates = getDateRange(date, 3);
-  
+
   try {
-    const results = await Promise.all(
-      dates.map(d => searchFlights({
+    const allResults = [];
+
+    for (const d of dates) {
+      const params = new URLSearchParams({
         origin,
         destination,
-        date: d,
+        depart_date: d,
+        one_way: true,
+        currency: 'AUD',
+        sorting: 'price',
         adults: adults || 1,
         children: children || 0,
         infants: infants || 0,
-        token,
-        marker
-      }))
-    );
+        limit: 3,
+        token
+      });
 
-    const allFlights = results
-      .flat()
-      .filter(Boolean)
-      .sort((a, b) => a.price - b.price);
+      const response = await fetch(
+        `https://api.travelpayouts.com/v1/prices/calendar?${params}`,
+        {
+          headers: { 'X-Access-Token': token }
+        }
+      );
+
+      if (!response.ok) continue;
+
+      const data = await response.json();
+
+      if (data.success && data.data) {
+        Object.values(data.data).forEach(flight => {
+          allResults.push({
+            date: d,
+            price: flight.price,
+            airline: flight.airline,
+            transfers: flight.transfers,
+            direct: flight.transfers === 0,
+            departure: flight.departure_at,
+            duration: flight.duration,
+            link: `https://www.aviasales.com/search/${origin}${d.replace(/-/g,'')}${destination}1?marker=${process.env.AVIASALES_MARKER}`
+          });
+        });
+      }
+    }
+
+    // Sort by price
+    allResults.sort((a, b) => a.price - b.price);
+
+    // Group by date for calendar view
+    const calendar = {};
+    allResults.forEach(f => {
+      if (!calendar[f.date] || calendar[f.date].price > f.price) {
+        calendar[f.date] = f;
+      }
+    });
 
     return res.status(200).json({
       success: true,
-      flights: allFlights,
-      cheapest: allFlights[0] || null
+      flights: allResults,
+      calendar,
+      cheapest: allResults[0] || null,
+      requested_date: date
     });
 
   } catch (error) {
@@ -54,45 +92,4 @@ function getDateRange(dateStr, days) {
     range.push(d.toISOString().split('T')[0]);
   }
   return range;
-}
-
-async function searchFlights({ origin, destination, date, adults, children, infants, token, marker }) {
-  const params = new URLSearchParams({
-    origin,
-    destination,
-    depart_date: date,
-    adults,
-    children,
-    infants,
-    currency: 'AUD',
-    token
-  });
-
-  const response = await fetch(
-    `https://api.travelpayouts.com/v1/prices/cheap?${params}`,
-    {
-      headers: {
-        'X-Access-Token': token
-      }
-    }
-  );
-
-  if (!response.ok) return [];
-
-  const data = await response.json();
-  
-  if (!data.success || !data.data) return [];
-
-  return Object.entries(data.data).map(([airline, flights]) =>
-    Object.entries(flights).map(([, flight]) => ({
-      airline,
-      date,
-      price: flight.price,
-      departure: flight.departure_at,
-      return: flight.return_at,
-      transfers: flight.transfers,
-      direct: flight.transfers === 0,
-      link: `https://www.aviasales.com/search/${origin}${date.replace(/-/g,'')}${destination}1?marker=${marker}`
-    }))
-  ).flat();
 }
