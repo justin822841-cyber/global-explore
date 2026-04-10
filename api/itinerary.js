@@ -5,32 +5,40 @@ export default async function handler(req, res) {
 
   const {
     origin, destination, departDate, returnDate,
-    adults, children, infants, seniors,
-    budget, flightPreference, travelClass,
-    accommodationLevel, accommodationType, accommodationLocation,
-    travelStyle, pace, purpose, dietary,
-    hasVisited, localTransport, crowdPreference,
-    shoppingFocus, nearbyCity, childAges, seniorAges,
-    anchors, specialRequests
+    adults = 1, children = 0, infants = 0, seniors = 0,
+    childAges = '', seniorAges = '',
+    currency = 'AUD',
+    budget = '', travelClass = 'Economy',
+    flightPreference = '', accommodationLevel = 'Comfort',
+    accommodationType = 'any', accommodationLocation = 'any',
+    travelStyle = [], pace = 'Balanced', purpose = '',
+    dietary = 'none', hasVisited = 'never',
+    localTransport = '', crowdPreference = '',
+    shoppingFocus = 'no', nearbyCity = 'No',
+    specialRequests = '', anchors = []
   } = req.body;
 
   if (!origin || !destination) {
     return res.status(400).json({ error: 'Missing origin or destination' });
   }
 
-  // Calculate number of nights
   const nights = departDate && returnDate
-    ? Math.max(1, Math.round((new Date(returnDate) - new Date(departDate)) / (1000 * 60 * 60 * 24)))
+    ? Math.max(1, Math.round((new Date(returnDate) - new Date(departDate)) / 86400000))
     : 7;
 
-  // Determine if family trip
-  const hasChildren = (parseInt(children) || 0) > 0;
-  const hasInfants  = (parseInt(infants)  || 0) > 0;
-  const hasSeniors  = (parseInt(seniors)  || 0) > 0;
-  const totalPax    = (parseInt(adults) || 1) + (parseInt(children) || 0);
+  const hasChildren = parseInt(children) > 0;
+  const hasInfants  = parseInt(infants) > 0;
+  const hasSeniors  = parseInt(seniors) > 0;
+  const totalPax    = parseInt(adults) + parseInt(children);
 
-  // Affiliate base URLs with Travelpayouts marker
+  const currencySymbols = {
+    AUD:'A$', USD:'$', GBP:'£', EUR:'€', CNY:'¥',
+    SGD:'S$', JPY:'¥', HKD:'HK$', CAD:'C$', NZD:'NZ$'
+  };
+  const currSymbol = currencySymbols[currency] || currency;
+
   const MARKER = process.env.AVIASALES_MARKER || '717078';
+
   const affiliates = {
     klook:          `https://www.klook.com/en-AU/?aid=tp${MARKER}`,
     tiqets:         `https://www.tiqets.com/en/?partner=globalexplore`,
@@ -43,120 +51,146 @@ export default async function handler(req, res) {
     airhelp:        `https://www.airhelp.com/en-au/?partner=${MARKER}`,
     ekta:           `https://ekta.app/?ref=${MARKER}`,
     ticketNetwork:  `https://www.ticketnetwork.com/?ref=${MARKER}`,
-    aviasales:      `https://www.aviasales.com/?marker=${MARKER}`,
     compensair:     `https://compensair.com/?ref=${MARKER}`,
   };
 
-  const prompt = `You are an expert luxury travel planner with deep local knowledge of every destination worldwide. You know the hidden gems, the best local restaurants, the most efficient transport routes, and the insider tips that make a trip truly memorable.
+  // Nearby cities logic based on trip duration
+  let nearbyCitiesInstruction = '';
+  const wantsNearby = nearbyCity && nearbyCity.toLowerCase().includes('yes');
 
-Create an exceptionally detailed, warm, and personalised day-by-day itinerary. Write like a knowledgeable friend who has lived in each city — not a generic travel guide.
+  if (wantsNearby) {
+    if (nights <= 5) {
+      nearbyCitiesInstruction = `
+NEARBY CITIES: The traveller wants nearby suggestions.
+Trip is ${nights} nights — focus primarily on the main destination.
+At the END of the itinerary (final day or practical tips), add a short section:
+"If you have extra time: [1-2 nearby cities within 1-2 hours, with transport time and why worth visiting]"
+Do NOT dedicate full days to nearby cities for a short trip.`;
+    } else if (nights <= 10) {
+      nearbyCitiesInstruction = `
+NEARBY CITIES: The traveller wants nearby suggestions. Trip is ${nights} nights.
+After covering the main destination thoroughly (first 4-5 days minimum), include 1 nearby city:
+- Dedicate 1-2 days to it in the itinerary
+- Include specific transport: how to get there, journey time, cost
+- Explain what makes it worth the side trip
+- Return to main city or continue journey from there`;
+    } else {
+      nearbyCitiesInstruction = `
+NEARBY CITIES: The traveller wants nearby suggestions. Trip is ${nights} nights — this is a long trip.
+After covering the main destination (first 5-6 days), include 2-3 nearby cities or regions:
+- Dedicate 2-3 days to each nearby destination
+- Include specific transport details (train/bus/car, journey time, cost in ${currency})
+- Each nearby city should have its own mini-itinerary with morning/afternoon/evening
+- Include hotel recommendations for each city
+- The nearby cities should flow logically (circular route or linear progression)`;
+    }
+  } else {
+    nearbyCitiesInstruction = `
+NEARBY CITIES: The traveller does NOT want nearby city suggestions.
+Focus entirely on the specified destination(s). Do not suggest day trips to other cities.`;
+  }
+
+  const prompt = `You are an expert luxury travel planner with intimate local knowledge of every destination worldwide. You know the hidden gems, the best local restaurants, the most efficient routes, and the insider tips that make a trip truly memorable.
+
+Create an exceptionally detailed, warm, and personalised day-by-day itinerary. Write like a knowledgeable friend who has lived in each city — specific, warm, and genuinely helpful.
 
 TRIP DETAILS:
-- Origin: ${origin}
-- Destination(s): ${destination}
+- From: ${origin}
+- To: ${destination}
 - Departure: ${departDate}
 - Return: ${returnDate}
 - Duration: ${nights} nights
-- Total Budget: ${budget} AUD
-- Travel Class: ${travelClass || 'Economy'}
+- Total Budget: ${budget} ${currency} (${currSymbol})
+- Travel Class: ${travelClass}
+- Currency for all prices: ${currency} (${currSymbol})
 
-TRAVELLERS:
-- Adults: ${adults || 1}
-- Children: ${children || 0}${hasChildren ? ' (ages: ' + (childAges || 'not specified') + ')' : ''}
-- Infants: ${infants || 0}${hasInfants ? ' — needs pram-friendly venues and baby facilities' : ''}
-- Seniors: ${seniors || 0}${hasSeniors ? ' (ages: ' + (seniorAges || 'not specified') + ') — needs accessible venues and comfortable pace' : ''}
-- Total travellers: ${totalPax}
+TRAVELLERS (${totalPax} total):
+- Adults: ${adults}
+- Children: ${children}${hasChildren ? ` (ages: ${childAges || 'not specified'})` : ''}
+- Infants: ${infants}${hasInfants ? ' — needs baby-friendly venues, cots, changing facilities' : ''}
+- Seniors: ${seniors}${hasSeniors ? ` (ages: ${seniorAges || 'not specified'}) — needs accessible venues, comfortable pace, step-free routes` : ''}
 
 PREFERENCES:
-- Flight preference: ${flightPreference || 'Best value'}
-- Accommodation level: ${accommodationLevel || 'Comfort'}
-- Accommodation type: ${accommodationType || 'No preference'}
-- Preferred location: ${accommodationLocation || 'No preference'}
-- Daily pace: ${pace || 'Balanced'}
-- Travel styles: ${Array.isArray(travelStyle) ? travelStyle.join(', ') : travelStyle || 'General sightseeing'}
-- Trip purpose: ${purpose || 'Holiday'}
-- Dietary requirements: ${dietary || 'No restrictions'}
-- Previous visits: ${hasVisited || 'First time'}
-- Local transport: ${localTransport || 'Public transport'}
-- Crowd preference: ${crowdPreference || 'Mix'}
-- Shopping focus: ${shoppingFocus || 'Not a priority'}
-- Nearby city suggestions: ${nearbyCity || 'No'}
+- Accommodation: ${accommodationLevel} level, ${accommodationType} type, ${accommodationLocation} location
+- Daily pace: ${pace}
+- Travel styles: ${Array.isArray(travelStyle) ? travelStyle.join(', ') : travelStyle || 'General'}
+- Purpose: ${purpose || 'Holiday'}
+- Dietary: ${dietary}
+- Previous visits: ${hasVisited}
+- Local transport: ${localTransport}
+- Crowd preference: ${crowdPreference}
+- Shopping: ${shoppingFocus}
+- Flight preference: ${flightPreference}
 
 ${anchors && anchors.length > 0 ? `
-FIXED COMMITMENTS — you MUST plan everything around these anchor points:
-${anchors.map(a => `- DATE: ${a.date} | CITY: ${a.city} | TYPE: ${a.type} | NOTES: ${a.notes}${a.days ? ' | STAYING: ' + a.days + ' days' : ''}`).join('\n')}
+FIXED COMMITMENTS — plan everything around these:
+${anchors.map(a => `- ${a.date}${a.nights ? ` (${a.nights} nights)` : ''} | ${a.city} | ${a.type} | ${a.notes}`).join('\n')}
 ` : ''}
 
-${specialRequests ? `SPECIAL REQUESTS (treat these as high priority): ${specialRequests}` : ''}
+${specialRequests ? `SPECIAL REQUESTS (high priority): ${specialRequests}` : ''}
 
-QUALITY REQUIREMENTS — every day must meet these standards:
+${nearbyCitiesInstruction}
 
-1. MORNING/AFTERNOON/EVENING: Each must be 4-6 sentences minimum. Include:
-   - Specific venue/neighbourhood names
-   - What makes this place special or unique
-   - Best time to arrive and why
-   - A local tip most tourists don't know
-   ${hasChildren ? '- Child-friendly aspect or activity for kids' : ''}
-   ${hasSeniors ? '- Accessibility note or pace consideration' : ''}
+VISITED BEFORE GUIDANCE:
+${hasVisited === 'never' ? '- First time visitor: include iconic must-see attractions but explain what makes each special beyond the obvious' : ''}
+${hasVisited === 'once' ? '- Been once: skip the most obvious tourist spots, go one layer deeper — lesser-known neighbourhoods, local restaurants, second-tier attractions that are just as rewarding' : ''}
+${hasVisited === 'multiple' ? '- Multiple visits: avoid all tourist trails entirely. Focus on hyper-local experiences, niche museums, neighbourhood markets, off-the-beaten-path areas that even many locals overlook' : ''}
 
-2. MEALS: Give exactly 2 options per meal:
-   - Format: "Option 1: [Restaurant Name] ([neighbourhood]) — [2 sentence description of atmosphere, signature dish, price range]. Option 2: [Restaurant Name] — [description]"
-   - Include actual restaurant names, not generic descriptions
-   - Match dietary requirements: ${dietary}
-   - ${hasChildren ? 'At least one option per meal should be family/child-friendly' : ''}
+QUALITY STANDARDS — every day must meet these:
 
-3. TIPS: Give 2-3 specific, actionable tips per day:
-   - Transport card names, booking links, reservation requirements
-   - Time-specific advice (e.g. "arrive before 9am to avoid queues")
-   - Money-saving tips relevant to the budget level
-   - Safety or cultural etiquette notes where relevant
+1. MORNING/AFTERNOON/EVENING: 4-6 sentences each with:
+   - Specific venue/neighbourhood names and why each is special
+   - Best time to arrive, what to look for, insider knowledge
+   - Practical details (transport, booking needed, dress code)
+   ${hasChildren ? '   - Child-friendly aspects for kids' : ''}
+   ${hasSeniors ? '   - Accessibility and pace notes for seniors' : ''}
 
-4. HOTELS: For each city, recommend exactly 3 hotels that genuinely match the accommodation level (${accommodationLevel}):
-   - Must be real hotels that exist
-   - Explain specifically why each suits THIS group (${totalPax} people, ${purpose})
-   - Include the neighbourhood and walking distance to key attractions
-   - Realistic price range in AUD per night
+2. MEALS — exactly 2 options per meal:
+   Format: "Option 1: [Name] ([neighbourhood]) — [2 sentences on atmosphere, signature dishes, price range ${currSymbol}]. Option 2: [Name] — [description]"
+   - Real restaurant names that exist
+   - Match dietary requirement: ${dietary}
+   ${hasChildren ? '   - At least one child-friendly option per meal' : ''}
 
-5. FOOD HIGHLIGHTS: 8-10 items, each with specific restaurant and 1-sentence description of why it's unmissable
+3. TIPS: 2-3 specific actionable tips per day including transport cards, booking links, timing, money-saving advice
 
-6. PRACTICAL TIPS: 10-12 highly specific tips including:
-   - Local transport app names
-   - Currency/payment advice
-   - Cultural etiquette
-   - ${hasChildren ? 'Family-specific tips (stroller access, baby facilities, kid-friendly hours)' : ''}
-   - ${hasSeniors ? 'Senior-friendly access tips' : ''}
-   - Booking requirements for popular attractions
-   - Best apps to download
+4. HOTELS: 3 real hotels per city matching ${accommodationLevel} level:
+   - Explain specifically why each suits ${totalPax} people for ${purpose}
+   - Include neighbourhood and walking distance to key attractions
+   - Price in ${currSymbol} per night
 
-7. BUDGET BREAKDOWN: Calculate for ${totalPax} people total (round trip):
-   - Flights: based on ${travelClass || 'Economy'} class for ${adults || 1} adults + ${children || 0} children
-   - Accommodation: based on ${accommodationLevel} level for ${nights} nights
-   - Food: realistic daily food budget × ${nights} days × ${totalPax} people
-   - Activities: estimated costs for typical activities
-   - Transport: local transport for ${nights} days
-   - Total: sum of all above
-   - Make sure budget is realistic for ${travelClass || 'Economy'} class and ${accommodationLevel} accommodation
+5. FOOD HIGHLIGHTS: 8-10 items, each with specific restaurant name
 
-RESPOND WITH VALID JSON ONLY. No markdown, no explanation, just the JSON object:
+6. PRACTICAL TIPS: 10-12 highly specific tips including transport apps, payment advice, cultural etiquette, booking requirements
+   ${hasChildren ? '   - Include family-specific tips (stroller access, kid hours, family discounts)' : ''}
+   ${hasSeniors ? '   - Include senior-friendly access and discount information' : ''}
+
+7. BUDGET: Calculate for ${totalPax} people total return trip in ${currency}:
+   - Flights: ${travelClass} for ${adults} adult(s) + ${children} child(ren) return
+   - Accommodation: ${accommodationLevel} for ${nights} nights
+   - Food: realistic daily budget × ${nights} days × ${totalPax} people
+   - Activities and transport costs
+   All amounts in ${currency}
+
+RESPOND WITH VALID JSON ONLY — no markdown, no explanation:
 
 {
-  "summary": "4-5 warm, specific sentences describing what makes this particular trip special for this group. Mention specific highlights they will experience.",
+  "summary": "4-5 warm specific sentences about what makes this trip special for this group",
   "days": [
     {
       "day": 1,
       "date": "YYYY-MM-DD",
       "city": "City Name",
-      "title": "Evocative, specific day theme (not generic like Day 1)",
-      "morning": "4-6 sentence detailed description with specific venues, insider tips, and what makes each place special",
-      "afternoon": "4-6 sentence detailed description",
-      "evening": "4-6 sentence detailed description",
+      "title": "Evocative specific day theme",
+      "morning": "4-6 sentence description with specific venues and insider tips",
+      "afternoon": "4-6 sentence description",
+      "evening": "4-6 sentence description",
       "meals": {
-        "breakfast": "Option 1: [Name] ([area]) — [description, atmosphere, price range]. Option 2: [Name] — [description]",
+        "breakfast": "Option 1: [Name] ([area]) — [description, price ${currSymbol}]. Option 2: [Name] — [description]",
         "lunch": "Option 1: [Name] ([area]) — [description]. Option 2: [Name] — [description]",
-        "dinner": "Option 1: [Name] ([area]) — [description, why special]. Option 2: [Name] — [description]"
+        "dinner": "Option 1: [Name] ([area]) — [description]. Option 2: [Name] — [description]"
       },
-      "tips": "Tip 1: [specific actionable advice]. Tip 2: [transport/booking/timing advice]. Tip 3: [local insider tip]",
-      "estimatedCost": 150
+      "tips": "Tip 1: [specific]. Tip 2: [transport/booking]. Tip 3: [insider]",
+      "estimatedCost": 0
     }
   ],
   "hotels": [
@@ -166,24 +200,24 @@ RESPOND WITH VALID JSON ONLY. No markdown, no explanation, just the JSON object:
         {
           "name": "Exact Hotel Name",
           "level": "${accommodationLevel}",
-          "pricePerNight": 200,
-          "location": "Specific neighbourhood — [X] min walk to [key attraction]",
-          "whyRecommended": "2-3 sentences specifically about why this hotel suits ${totalPax} travellers doing ${purpose}",
-          "bookingSearch": "https://www.agoda.com/search?city=CITY&checkIn=${departDate}&checkOut=${returnDate}&adults=${adults || 1}&children=${children || 0}&lang=en-us"
+          "pricePerNight": 0,
+          "currency": "${currency}",
+          "location": "Neighbourhood — X min walk to [key attraction]",
+          "whyRecommended": "2-3 sentences specific to this group's needs"
         }
       ]
     }
   ],
   "foodHighlights": [
-    "Dish Name at Restaurant Name (Neighbourhood) — one sentence on why this is unmissable"
+    "Dish at Restaurant (Neighbourhood) — why unmissable"
   ],
   "practicalTips": [
-    "Specific actionable tip with all necessary details"
+    "Specific actionable tip with all details"
   ],
   "affiliateRecommendations": {
     "activities": {
-      "title": "Book Activities & Attractions",
-      "description": "Save time and skip queues by booking in advance",
+      "title": "Book Activities & Skip the Queue",
+      "description": "Pre-book to guarantee entry and avoid long waits",
       "platforms": [
         {"name": "Klook", "url": "${affiliates.klook}", "description": "Best for Asia activities, theme parks and day tours"},
         {"name": "Tiqets", "url": "${affiliates.tiqets}", "description": "Instant mobile tickets for museums and attractions"},
@@ -192,47 +226,47 @@ RESPOND WITH VALID JSON ONLY. No markdown, no explanation, just the JSON object:
     },
     "airportTransfers": {
       "title": "Airport Transfers",
-      "description": "Reliable door-to-door transfers",
+      "description": "Door-to-door with professional drivers — no taxi queues",
       "platforms": [
-        {"name": "Welcome Pickups", "url": "${affiliates.welcomePickups}", "description": "Professional drivers, fixed prices, meet & greet"},
-        {"name": "Kiwitaxi", "url": "${affiliates.kiwitaxi}", "description": "Airport transfers in 100+ countries"}
+        {"name": "Welcome Pickups", "url": "${affiliates.welcomePickups}", "description": "Fixed prices, meet & greet, available worldwide"},
+        {"name": "Kiwitaxi", "url": "${affiliates.kiwitaxi}", "description": "Transfers in 100+ countries, various vehicle types"}
       ]
     },
     "esim": {
       "title": "Stay Connected — Travel eSIM",
-      "description": "Avoid expensive roaming charges",
+      "description": "Avoid expensive roaming — activate before you fly",
       "platforms": [
-        {"name": "Airalo", "url": "${affiliates.airalo}", "description": "World's largest eSIM store — activate before you fly"},
-        {"name": "Yesim", "url": "${affiliates.yesim}", "description": "Premium eSIM with data in 200+ countries"}
+        {"name": "Airalo", "url": "${affiliates.airalo}", "description": "World's largest eSIM store — data in 200+ countries"},
+        {"name": "Yesim", "url": "${affiliates.yesim}", "description": "Premium Swiss eSIM with global coverage"}
       ]
     },
     "insurance": {
       "title": "Travel Insurance",
       "description": "Travel with peace of mind",
       "platforms": [
-        {"name": "EKTA Insurance", "url": "${affiliates.ekta}", "description": "Comprehensive travel insurance with fast claims"}
+        {"name": "EKTA Insurance", "url": "${affiliates.ekta}", "description": "Comprehensive cover with fast online claims"}
       ]
     },
     "flightProtection": {
       "title": "Flight Delay Compensation",
-      "description": "Get compensated if your flight is delayed or cancelled",
+      "description": "Free to check — claim up to €600 if your flight is disrupted",
       "platforms": [
-        {"name": "AirHelp", "url": "${affiliates.airhelp}", "description": "Claim up to €600 for flight delays — free to check eligibility"},
-        {"name": "Compensair", "url": "${affiliates.compensair}", "description": "Fast compensation for disrupted flights"}
+        {"name": "AirHelp", "url": "${affiliates.airhelp}", "description": "Largest flight compensation service worldwide"},
+        {"name": "Compensair", "url": "${affiliates.compensair}", "description": "Fast compensation for delayed or cancelled flights"}
       ]
-    }${localTransport === 'Rental car — I prefer to drive' ? `,
+    }${localTransport && localTransport.toLowerCase().includes('rental') ? `,
     "carRental": {
       "title": "Car Rental",
       "description": "Best rates from local and international companies",
       "platforms": [
-        {"name": "GetRentacar", "url": "${affiliates.getRentacar}", "description": "Compare prices from 800+ car rental companies worldwide"}
+        {"name": "GetRentacar", "url": "${affiliates.getRentacar}", "description": "Compare 800+ car rental companies worldwide"}
       ]
-    }` : ''}${anchors?.some(a => a.type?.includes('Concert') || a.type?.includes('event')) ? `,
+    }` : ''}${anchors && anchors.some(a => a.type && (a.type.toLowerCase().includes('concert') || a.type.toLowerCase().includes('show') || a.type.toLowerCase().includes('event'))) ? `,
     "events": {
-      "title": "Event Tickets",
-      "description": "Find tickets for concerts, sports and shows",
+      "title": "Event & Concert Tickets",
+      "description": "Find and book tickets for live events worldwide",
       "platforms": [
-        {"name": "TicketNetwork", "url": "${affiliates.ticketNetwork}", "description": "Official tickets for thousands of events worldwide"}
+        {"name": "TicketNetwork", "url": "${affiliates.ticketNetwork}", "description": "Official tickets for concerts, sports and theatre"}
       ]
     }` : ''}
   },
@@ -242,7 +276,8 @@ RESPOND WITH VALID JSON ONLY. No markdown, no explanation, just the JSON object:
     "food": 0,
     "activities": 0,
     "transport": 0,
-    "total": 0
+    "total": 0,
+    "currency": "${currency}"
   }
 }`;
 
@@ -262,36 +297,24 @@ RESPOND WITH VALID JSON ONLY. No markdown, no explanation, just the JSON object:
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      return res.status(500).json({ error: error.message || 'Claude API error' });
+      const err = await response.json();
+      return res.status(500).json({ error: err.error?.message || 'Claude API error' });
     }
 
     const data = await response.json();
-    const text = data.content[0].text;
+    const raw = data.content?.[0]?.text || '';
 
-    // Clean and parse JSON
-    const clean = text
-      .replace(/```json\n?/g, '')
-      .replace(/```\n?/g, '')
-      .trim();
-
+    const clean = raw.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
     let itinerary;
     try {
       itinerary = JSON.parse(clean);
-    } catch (parseErr) {
-      // Try to extract JSON from response
+    } catch (_) {
       const match = clean.match(/\{[\s\S]*\}/);
-      if (match) {
-        itinerary = JSON.parse(match[0]);
-      } else {
-        throw new Error('Could not parse itinerary response');
-      }
+      if (match) itinerary = JSON.parse(match[0]);
+      else throw new Error('Could not parse itinerary JSON');
     }
 
-    return res.status(200).json({
-      success: true,
-      itinerary
-    });
+    return res.status(200).json({ success: true, itinerary });
 
   } catch (error) {
     return res.status(500).json({ error: error.message });
