@@ -3,93 +3,131 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { origin, destination, date, adults, children, infants } = req.body;
+  const {
+    origin,
+    destination,
+    date,
+    adults = 1,
+    children = 0,
+    infants = 0,
+    travelClass = 'Economy',
+    currency = 'AUD'
+  } = req.body;
 
   if (!origin || !destination || !date) {
-    return res.status(400).json({ error: 'Missing required fields' });
+    return res.status(400).json({ error: 'Missing required fields: origin, destination, date' });
   }
 
-  const token = process.env.AVIASALES_TOKEN;
+  const token  = process.env.AVIASALES_TOKEN;
+  const marker = process.env.AVIASALES_MARKER || '717078';
 
-  // Generate ±3 days date range
-  const dates = getDateRange(date, 3);
+  if (!token) {
+    return res.status(500).json({ error: 'Missing AVIASALES_TOKEN' });
+  }
 
-  try {
-    const allResults = [];
+  const classCodes = {
+    'Economy': 0, 'economy': 0,
+    'Premium Economy': 1, 'premium': 1,
+    'Business': 2, 'business': 2,
+    'First Class': 3, 'first': 3,
+  };
+  const tripClass = classCodes[travelClass] ?? 0;
+  const classUrlMap = { 0:'Y', 1:'W', 2:'C', 3:'F' };
+  const classUrlCode = classUrlMap[tripClass] || 'Y';
 
-    for (const d of dates) {
-      const params = new URLSearchParams({
-        origin,
-        destination,
-        depart_date: d,
-        one_way: true,
-        currency: 'AUD',
-        sorting: 'price',
-        adults: adults || 1,
-        children: children || 0,
-        infants: infants || 0,
-        limit: 3,
-        token
-      });
+  const dates = buildDateRange(date, 15);
+  const allFares = [];
 
-      const response = await fetch(
-        `https://api.travelpayouts.com/v1/prices/calendar?${params}`,
-        {
-          headers: { 'X-Access-Token': token }
-        }
-      );
+  await Promise.allSettled(
+    dates.map(async (d) => {
+      try {
+        const url = new URL('https://api.travelpayouts.com/v1/prices/calendar');
+        url.searchParams.set('origin',      origin.toUpperCase());
+        url.searchParams.set('destination', destination.toUpperCase());
+        url.searchParams.set('depart_date', d);
+        url.searchParams.set('currency',    currency);
+        url.searchParams.set('trip_class',  String(tripClass));
+        url.searchParams.set('token',       token);
 
-      if (!response.ok) continue;
+        const response = await fetch(url.toString(), {
+          headers: { 'X-Access-Token': token },
+          signal: AbortSignal.timeout(8000)
+        });
 
-      const data = await response.json();
+        if (!response.ok) return;
+        const json = await response.json();
+        if (!json.success || !json.data) return;
 
-      if (data.success && data.data) {
-        Object.values(data.data).forEach(flight => {
-          allResults.push({
-            date: d,
-            price: flight.price,
-            airline: flight.airline,
-            transfers: flight.transfers,
-            direct: flight.transfers === 0,
-            departure: flight.departure_at,
-            duration: flight.duration,
-            link: `https://www.aviasales.com/search/${origin}${d.replace(/-/g,'')}${destination}1?marker=${process.env.AVIASALES_MARKER}`
+        Object.values(json.data).forEach(entry => {
+          if (!entry.price) return;
+          const dateFormatted = d.replace(/-/g, '');
+          allFares.push({
+            date:      d,
+            price:     entry.price,
+            airline:   entry.airline || '',
+            transfers: entry.transfers ?? 1,
+            direct:    (entry.transfers ?? 1) === 0,
+            currency,
+            travelClass,
+            link: buildAviasalesLink(origin, destination, dateFormatted, adults, children, infants, classUrlCode, marker),
           });
         });
-      }
-    }
+      } catch (_) {}
+    })
+  );
 
-    // Sort by price
-    allResults.sort((a, b) => a.price - b.price);
-
-    // Group by date for calendar view
-    const calendar = {};
-    allResults.forEach(f => {
-      if (!calendar[f.date] || calendar[f.date].price > f.price) {
-        calendar[f.date] = f;
-      }
-    });
-
+  if (allFares.length === 0) {
     return res.status(200).json({
       success: true,
-      flights: allResults,
-      calendar,
-      cheapest: allResults[0] || null,
-      requested_date: date
+      message: 'No cached fares found. Click search to see live prices.',
+      flights: [], calendar: {}, top5: [], cheapest: null,
+      searchLink: buildAviasalesLink(origin, destination, date.replace(/-/g,''), adults, children, infants, classUrlCode, marker),
+      requested_date: date, currency, travelClass,
     });
-
-  } catch (error) {
-    return res.status(500).json({ error: error.message });
   }
+
+  const calendarMap = {};
+  allFares.forEach(f => {
+    if (!calendarMap[f.date] || calendarMap[f.date].price > f.price) {
+      calendarMap[f.date] = f;
+    }
+  });
+
+  const top5 = Object.values(calendarMap)
+    .sort((a, b) => a.price - b.price)
+    .slice(0, 5);
+
+  return res.status(200).json({
+    success: true,
+    flights: allFares,
+    calendar: calendarMap,
+    top5,
+    cheapest: top5[0] || null,
+    requested_date: date,
+    currency,
+    travelClass,
+    totalPassengers: Number(adults) + Number(children),
+  });
 }
 
-function getDateRange(dateStr, days) {
-  const base = new Date(dateStr);
-  const range = [];
+function buildDateRange(baseDate, days) {
+  const base = new Date(baseDate);
+  const result = [];
+  const today = new Date();
   for (let i = -days; i <= days; i++) {
     const d = new Date(base);
     d.setDate(d.getDate() + i);
-    range.push(d.toISOString().split('T')[0]);
+    if (d < today) continue;
+    result.push(d.toISOString().split('T')[0]);
   }
-  return range;
+  return result;
+}
+
+function buildAviasalesLink(origin, dest, dateStr, adults, children, infants, classCode, marker) {
+  const base = `https://www.aviasales.com/search/${origin.toUpperCase()}${dateStr}${dest.toUpperCase()}${adults}`;
+  const params = new URLSearchParams({ marker });
+  if (Number(children) > 0) params.set('children', String(children));
+  if (Number(infants)  > 0) params.set('infants',  String(infants));
+  if (classCode !== 'Y')    params.set('class',     classCode);
+  return `${base}?${params.toString()}`;
 }
