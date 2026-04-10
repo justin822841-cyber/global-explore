@@ -658,6 +658,54 @@
 </div>
 
 <script>
+  // Call APIs from loading page
+async function fetchItinerary() {
+  const raw = localStorage.getItem('ge_formData');
+  if (!raw) {
+    localStorage.setItem('ge_results', JSON.stringify({ error: 'no data' }));
+    return;
+  }
+
+  const formData = JSON.parse(raw);
+  const originCode = formData.origin?.match(/\(([A-Z]{3})\)/)?.[1] || formData.origin?.slice(0,3).toUpperCase() || 'MEL';
+  const destCode   = formData.destination?.match(/\(([A-Z]{3})\)/)?.[1] || formData.destination?.slice(0,3).toUpperCase() || 'TYO';
+
+  try {
+    const [flightsRes, itineraryRes] = await Promise.all([
+      fetch('/api/flights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          origin: originCode,
+          destination: destCode,
+          date: formData.departDate,
+          adults: formData.adults || 1,
+          children: formData.children || 0,
+          infants: formData.infants || 0
+        })
+      }),
+      fetch('/api/itinerary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
+    ]);
+
+    const flightsData   = await flightsRes.json();
+    const itineraryData = await itineraryRes.json();
+
+    localStorage.setItem('ge_results', JSON.stringify({
+      flights:   flightsData,
+      itinerary: itineraryData.itinerary
+    }));
+
+  } catch(err) {
+    localStorage.setItem('ge_results', JSON.stringify({ error: err.message }));
+  }
+}
+
+// Start fetching immediately
+fetchItinerary();
   const params  = new URLSearchParams(window.location.search);
   const lang    = params.get('lang') || 'en';
   const dest    = params.get('dest') || '';
