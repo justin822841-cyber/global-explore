@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global Explore — Your Itinerary</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+  :root {
+    --ink: #0f1117;
+    --paper: #f8f5ef;
+    --gold: #c9a84c;
+    --gold-light: #e8d5a3;
+    --mist: #e8e4dc;
+    --text-secondary: #6b6560;
+    --white: #ffffff;
+    --success: #2d7a4f;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--paper); color: var(--ink); }
+
+  /* NAV */
+  .nav {
+    background: var(--ink);
+    padding: 16px 64px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 600; letter-spacing: 0.08em; color: var(--white); text-decoration: none; }
+  .logo span { color: var(--gold); }
+  .nav-actions { display: flex; gap: 12px; align-items: center; }
+  .btn {
+    padding: 10px 24px;
+    border-radius: 2px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    text-transform: uppercase;
+  }
+  .btn-gold { background: var(--gold); color: var(--ink); }
+  .btn-gold:hover { background: var(--gold-light); }
+  .btn-outline { background: transparent; color: var(--white); border: 1px solid rgba(255,255,255,0.3); }
+  .btn-outline:hover { border-color: var(--gold); color: var(--gold); }
+  .btn-ghost { background: transparent; color: rgba(255,255,255,0.5); font-size: 12px; padding: 8px 16px; }
+  .btn-ghost:hover { color: var(--white); }
+
+  /* HERO SUMMARY */
+  .hero-summary {
+    background: var(--ink);
+    padding: 48px 64px 56px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-summary::before {
+    content: '';
+    position: absolute;
+    top: -100px; right: -100px;
+    width: 400px; height: 400px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(201,168,76,0.1) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 48px;
+    align-items: start;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .summary-eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 12px;
+    font-weight: 500;
+  }
+  .summary-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(32px, 4vw, 52px);
+    font-weight: 300;
+    color: var(--white);
+    line-height: 1.1;
+    margin-bottom: 8px;
+  }
+  .summary-title em { font-style: italic; color: var(--gold); }
+  .summary-subtitle { font-size: 14px; color: rgba(255,255,255,0.45); margin-bottom: 32px; }
+  .summary-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+  .summary-tag {
+    padding: 6px 14px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.6);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .summary-tag svg { color: var(--gold); flex-shrink: 0; }
+
+  .summary-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 200px;
+  }
+  .stat-card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(201,168,76,0.2);
+    border-radius: 4px;
+    padding: 16px 20px;
+    text-align: center;
+  }
+  .stat-card-num {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 32px;
+    font-weight: 600;
+    color: var(--gold);
+    line-height: 1;
+  }
+  .stat-card-label {
+    font-size: 11px;
+    color: rgba(255,255,255,0.4);
+    margin-top: 4px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* MAIN LAYOUT */
+  .main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 48px 64px;
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 40px;
+    align-items: start;
+  }
+  .content { display: flex; flex-direction: column; gap: 40px; }
+  .sidebar { display: flex; flex-direction: column; gap: 24px; position: sticky; top: 80px; }
+
+  /* SECTION CARDS */
+  .section-card {
+    background: var(--white);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .section-card-header {
+    padding: 24px 28px 20px;
+    border-bottom: 1px solid var(--mist);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .section-card-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    font-weight: 400;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-card-title svg { color: var(--gold); }
+  .section-card-body { padding: 24px 28px; }
+
+  /* FLIGHT SECTION */
+  .flight-best {
+    background: var(--ink);
+    border-radius: 4px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+  }
+  .flight-route { display: flex; align-items: center; gap: 16px; }
+  .flight-city-code {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--white);
+    line-height: 1;
+  }
+  .flight-city-name { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+  .flight-arrow { display: flex; align-items: center; gap: 6px; }
+  .flight-line { width: 40px; height: 1px; background: rgba(201,168,76,0.4); }
+  .flight-price-big {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 36px;
+    color: var(--gold);
+    font-weight: 600;
+    line-height: 1;
+  }
+  .flight-price-note { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 4px; }
+  .flight-book-btn {
+    padding: 12px 24px;
+    background: var(--gold);
+    color: var(--ink);
+    border: none;
+    border-radius: 2px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .flight-book-btn:hover { background: var(--gold-light); }
+
+  /* PRICE CALENDAR */
+  .price-cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .cal-item {
+    background: var(--paper);
+    border: 1px solid var(--mist);
+    border-radius: 2px;
+    padding: 8px 4px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .cal-item:hover { border-color: var(--gold); }
+  .cal-item.best {
+    background: var(--ink);
+    border-color: var(--gold);
+  }
+  .cal-item.best .cal-date { color: var(--gold); }
+  .cal-item.best .cal-price { color: var(--gold); font-weight: 600; }
+  .cal-item.best .cal-badge { display: block; }
+  .cal-date { font-size: 10px; color: var(--text-secondary); margin-bottom: 4px; }
+  .cal-price { font-size: 13px; font-weight: 500; color: var(--ink); }
+  .cal-badge {
+    display: none;
+    font-size: 9px;
+    color: var(--gold);
+    margin-top: 2px;
+    letter-spacing: 0.05em;
+  }
+
+  /* DAYS TIMELINE */
+  .day-card {
+    border: 1px solid var(--mist);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .day-card:last-child { margin-bottom: 0; }
+  .day-header {
+    background: var(--ink);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+  }
+  .day-header:hover { background: #1a1c24; }
+  .day-num-badge {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: rgba(201,168,76,0.15);
+    border: 1px solid rgba(201,168,76,0.4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 500;
+    color: var(--gold);
+    flex-shrink: 0;
+  }
+  .day-header-info { flex: 1; margin-left: 14px; }
+  .day-title { font-size: 15px; font-weight: 500; color: var(--white); }
+  .day-date { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+  .day-city-tag {
+    font-size: 11px;
+    color: var(--gold);
+    background: rgba(201,168,76,0.1);
+    border: 1px solid rgba(201,168,76,0.2);
+    padding: 3px 10px;
+    border-radius: 20px;
+  }
+  .day-chevron {
+    color: rgba(255,255,255,0.3);
+    transition: transform 0.3s;
+    margin-left: 12px;
+  }
+  .day-card.open .day-chevron { transform: rotate(180deg); }
+
+  .day-body { display: none; }
+  .day-card.open .day-body { display: block; }
+
+  .time-slot {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--mist);
+    display: flex;
+    gap: 16px;
+  }
+  .time-slot:last-child { border-bottom: none; }
+  .time-label {
+    width: 70px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .time-icon {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .time-icon.morning { background: rgba(255,200,50,0.12); }
+  .time-icon.afternoon { background: rgba(201,168,76,0.12); }
+  .time-icon.evening { background: rgba(100,100,200,0.12); }
+  .time-tag { font-size: 10px; color: var(--text-secondary); letter-spacing: 0.08em; text-transform: uppercase; }
+  .time-content { flex: 1; }
+  .time-content p { font-size: 14px; color: var(--ink); line-height: 1.65; }
+
+  /* MEALS ROW */
+  .meals-row {
+    padding: 14px 20px;
+    background: var(--paper);
+    border-top: 1px solid var(--mist);
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .meal-item { display: flex; align-items: flex-start; gap: 8px; }
+  .meal-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--gold);
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+  .meal-text { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+  .meal-text strong { color: var(--ink); font-weight: 500; font-size: 11px; display: block; letter-spacing: 0.05em; text-transform: uppercase; }
+
+  .day-tip {
+    padding: 12px 20px;
+    background: rgba(201,168,76,0.05);
+    border-top: 1px solid rgba(201,168,76,0.15);
+    font-size: 12px;
+    color: var(--text-secondary);
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .day-tip svg { color: var(--gold); flex-shrink: 0; margin-top: 1px; }
+
+  /* HOTELS */
+  .hotel-card {
+    border: 1px solid var(--mist);
+    border-radius: 4px;
+    padding: 20px;
+    margin-bottom: 14px;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    transition: border-color 0.2s;
+  }
+  .hotel-card:last-child { margin-bottom: 0; }
+  .hotel-card:hover { border-color: var(--gold); }
+  .hotel-icon {
+    width: 44px; height: 44px;
+    background: var(--ink);
+    border-radius: 2px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .hotel-info { flex: 1; }
+  .hotel-name { font-size: 15px; font-weight: 500; margin-bottom: 4px; }
+  .hotel-location { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; display: flex; align-items: center; gap: 4px; }
+  .hotel-why { font-size: 12px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 12px; }
+  .hotel-price { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 600; color: var(--gold); }
+  .hotel-price span { font-family: 'DM Sans', sans-serif; font-size: 11px; color: var(--text-secondary); font-weight: 400; }
+  .hotel-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .hotel-link {
+    padding: 6px 14px;
+    border: 1px solid var(--mist);
+    border-radius: 20px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: all 0.2s;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .hotel-link:hover { border-color: var(--gold); color: var(--gold); }
+
+  /* BUDGET */
+  .budget-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--mist);
+  }
+  .budget-row:last-child { border-bottom: none; }
+  .budget-label { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+  .budget-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .budget-bar-wrap { flex: 1; margin: 0 16px; height: 4px; background: var(--mist); border-radius: 2px; overflow: hidden; }
+  .budget-bar { height: 100%; border-radius: 2px; background: var(--gold); transition: width 1s ease; }
+  .budget-amount { font-size: 14px; font-weight: 500; white-space: nowrap; }
+  .budget-total {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 2px solid var(--ink);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .budget-total-label { font-size: 14px; font-weight: 500; }
+  .budget-total-amount { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 600; color: var(--gold); }
+
+  /* FOOD HIGHLIGHTS */
+  .food-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .food-item {
+    padding: 12px 14px;
+    background: var(--paper);
+    border-radius: 2px;
+    border-left: 3px solid var(--gold);
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  /* TIPS */
+  .tip-item {
+    display: flex;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--mist);
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    align-items: flex-start;
+  }
+  .tip-item:last-child { border-bottom: none; }
+  .tip-num {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--gold);
+    font-size: 10px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* SIDEBAR */
+  .sidebar-card {
+    background: var(--white);
+    border-radius: 4px;
+    padding: 20px;
+  }
+  .sidebar-title {
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--mist);
+  }
+
+  .action-btn {
+    width: 100%;
+    padding: 14px 20px;
+    border-radius: 2px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .action-btn:last-child { margin-bottom: 0; }
+  .action-btn.primary { background: var(--gold); color: var(--ink); }
+  .action-btn.primary:hover { background: var(--gold-light); }
+  .action-btn.secondary { background: var(--ink); color: var(--white); }
+  .action-btn.secondary:hover { background: #1a1c24; }
+  .action-btn.tertiary { background: transparent; color: var(--ink); border: 1px solid var(--mist); }
+  .action-btn.tertiary:hover { border-color: var(--gold); color: var(--gold); }
+
+  .share-divider { text-align: center; font-size: 11px; color: var(--text-secondary); margin: 8px 0; }
+
+  /* SUCCESS TOAST */
+  .toast {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--ink);
+    color: var(--white);
+    padding: 14px 24px;
+    border-radius: 4px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 1000;
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    border: 1px solid rgba(201,168,76,0.3);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast svg { color: var(--gold); }
+
+  /* ERROR STATE */
+  .error-state {
+    text-align: center;
+    padding: 80px 32px;
+  }
+  .error-state h2 { font-family: 'Cormorant Garamond', serif; font-size: 32px; font-weight: 300; margin-bottom: 16px; }
+  .error-state p { color: var(--text-secondary); margin-bottom: 32px; }
+
+  /* LOADING STATE */
+  .loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    gap: 20px;
+  }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--mist);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* PDF STYLES */
+  @media print {
+    .nav, .sidebar, .nav-actions, .action-btn, .hotel-links, .flight-book-btn { display: none !important; }
+    .main { grid-template-columns: 1fr; padding: 24px; }
+    .day-body { display: block !important; }
+    body { background: white; }
+  }
+
+  /* MULTILANG */
+  .lang-en .zh { display: none; }
+  .lang-zh .en { display: none; }
+
+  @media (max-width: 900px) {
+    .nav { padding: 14px 24px; }
+    .hero-summary { padding: 32px 24px 40px; }
+    .summary-grid { grid-template-columns: 1fr; gap: 24px; }
+    .main { grid-template-columns: 1fr; padding: 24px; }
+    .sidebar { position: static; }
+    .price-cal { grid-template-columns: repeat(4, 1fr); }
+    .food-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body class="lang-en">
+
+<!-- NAV -->
+<nav class="nav">
+  <a href="/" class="logo">Global <span>Explore</span></a>
+  <div class="nav-actions">
+    <button class="btn btn-ghost" onclick="window.location.href='/'">
+      <span class="en">← New Plan</span>
+      <span class="zh">← 新规划</span>
+    </button>
+    <button class="btn btn-outline" onclick="sendEmail()">
+      <span class="en">Email Me</span>
+      <span class="zh">发送到邮箱</span>
+    </button>
+    <button class="btn btn-gold" onclick="downloadPDF()">
+      <span class="en">Download PDF</span>
+      <span class="zh">下载PDF</span>
+    </button>
+  </div>
+</nav>
+
+<!-- CONTENT -->
+<div id="appContent">
+  <div class="loading-state">
+    <div class="spinner"></div>
+    <p style="color:var(--text-secondary);font-size:14px;" class="en">Loading your itinerary…</p>
+    <p style="color:var(--text-secondary);font-size:14px;" class="zh">正在加载你的行程…</p>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+  <span id="toastMsg">Email sent!</span>
+</div>
+
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const lang = params.get('lang') || 'en';
+  document.body.className = 'lang-' + lang;
+
+  // Load results from localStorage
+  let itinerary = null;
+  let flights = null;
+
+  function init() {
+    const raw = localStorage.getItem('ge_results');
+    if (!raw) {
+      showError();
+      return;
+    }
+    try {
+      const data = JSON.parse(raw);
+      if (data.error) { showError(); return; }
+      itinerary = data.itinerary;
+      flights = data.flights;
+      render();
+    } catch(e) {
+      showError();
+    }
+  }
+
+  function showError() {
+    document.getElementById('appContent').innerHTML = `
+      <div class="error-state">
+        <h2 class="en">Something went wrong</h2>
+        <h2 class="zh">出现了一些问题</h2>
+        <p class="en">We couldn't load your itinerary. Please try planning again.</p>
+        <p class="zh">无法加载您的行程，请重新规划。</p>
+        <a href="/" class="btn btn-gold" style="text-decoration:none;display:inline-block;padding:14px 32px;">
+          <span class="en">Plan Again</span>
+          <span class="zh">重新规划</span>
+        </a>
+      </div>
+    `;
+  }
+
+  function render() {
+    if (!itinerary) return;
+
+    const origin = localStorage.getItem('ge_origin') || 'Melbourne';
+    const dest = localStorage.getItem('ge_dest') || itinerary.days?.[0]?.city || 'Your Destination';
+    const dateFrom = localStorage.getItem('ge_dateFrom') || '';
+    const dateTo = localStorage.getItem('ge_dateTo') || '';
+    const adults = localStorage.getItem('ge_adults') || '2';
+    const nights = itinerary.days ? itinerary.days.length - 1 : 0;
+
+    const html = `
+      <!-- HERO -->
+      <div class="hero-summary">
+        <div class="summary-grid">
+          <div>
+            <div class="summary-eyebrow en">Your Personalised Itinerary</div>
+            <div class="summary-eyebrow zh">你的专属行程方案</div>
+            <h1 class="summary-title en">${origin} → <em>${dest}</em></h1>
+            <h1 class="summary-title zh">${origin} → <em>${dest}</em></h1>
+            <p class="summary-subtitle en">${formatDateRange(dateFrom, dateTo, 'en')} · ${itinerary.days?.length || 0} days</p>
+            <p class="summary-subtitle zh">${formatDateRange(dateFrom, dateTo, 'zh')} · ${itinerary.days?.length || 0} 天</p>
+            <div class="summary-tags">
+              <div class="summary-tag">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                <span class="en">${adults} travellers</span>
+                <span class="zh">${adults} 位旅行者</span>
+              </div>
+              ${nights > 0 ? `<div class="summary-tag"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span class="en">${nights} nights</span><span class="zh">${nights} 晚</span></div>` : ''}
+              ${flights?.cheapest ? `<div class="summary-tag"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21 4 19.5 2.5S18 2 16.5 3.5L13 7 4.8 5.2l-2 2 6.3 3.6L5 16l-1.5.4L2 18l2 .5.5 2 1.5-1.5.5-1.5 4-4.1 3.6 6.3 2-2z"/></svg><span class="en">Best fare: A$${flights.cheapest.price}</span><span class="zh">最优票价：A$${flights.cheapest.price}</span></div>` : ''}
+            </div>
+            <p style="margin-top:20px;font-size:13px;color:rgba(255,255,255,0.35);line-height:1.7;" class="en">${itinerary.summary || ''}</p>
+            <p style="margin-top:20px;font-size:13px;color:rgba(255,255,255,0.35);line-height:1.7;" class="zh">${itinerary.summary || ''}</p>
+          </div>
+          <div class="summary-stats">
+            <div class="stat-card">
+              <div class="stat-card-num">${itinerary.days?.length || 0}</div>
+              <div class="stat-card-label en">Days Planned</div>
+              <div class="stat-card-label zh">天行程</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-num">A$${itinerary.budgetBreakdown?.total?.toLocaleString() || '—'}</div>
+              <div class="stat-card-label en">Est. Total Budget</div>
+              <div class="stat-card-label zh">预计总费用</div>
+            </div>
+            ${flights?.cheapest ? `<div class="stat-card"><div class="stat-card-num">A$${flights.cheapest.price}</div><div class="stat-card-label en">Best Fare Found</div><div class="stat-card-label zh">最优票价</div></div>` : ''}
+          </div>
+        </div>
+      </div>
+
+      <!-- MAIN CONTENT -->
+      <div class="main" id="pdfContent">
+        <div class="content">
+
+          <!-- FLIGHTS -->
+          ${renderFlights(origin, dest, dateFrom)}
+
+          <!-- ITINERARY -->
+          <div class="section-card">
+            <div class="section-card-header">
+              <div class="section-card-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <span class="en">Day-by-Day Itinerary</span>
+                <span class="zh">每日行程安排</span>
+              </div>
+              <button onclick="toggleAllDays()" style="font-size:12px;color:var(--text-secondary);background:none;border:none;cursor:pointer;letter-spacing:0.05em;" class="en">Expand All</button>
+              <button onclick="toggleAllDays()" style="font-size:12px;color:var(--text-secondary);background:none;border:none;cursor:pointer;letter-spacing:0.05em;" class="zh">展开全部</button>
+            </div>
+            <div class="section-card-body" style="padding:20px 28px;">
+              ${renderDays(itinerary.days || [])}
+            </div>
+          </div>
+
+          <!-- HOTELS -->
+          ${renderHotels(itinerary.hotels || [], dateFrom, dateTo)}
+
+          <!-- FOOD -->
+          ${renderFood(itinerary.foodHighlights || [])}
+
+          <!-- TIPS -->
+          ${renderTips(itinerary.practicalTips || [])}
+
+        </div>
+
+        <!-- SIDEBAR -->
+        <div class="sidebar">
+          <div class="sidebar-card">
+            <div class="sidebar-title en">Save & Share</div>
+            <div class="sidebar-title zh">保存与分享</div>
+            <button class="action-btn primary" onclick="downloadPDF()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span class="en">Download PDF</span>
+              <span class="zh">下载 PDF</span>
+            </button>
+            <div class="share-divider en">or</div>
+            <div class="share-divider zh">或</div>
+            <button class="action-btn secondary" onclick="sendEmail()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              <span class="en">Send to My Email</span>
+              <span class="zh">发送到我的邮箱</span>
+            </button>
+            <button class="action-btn tertiary" onclick="window.location.href='/'">
+              <span class="en">Plan Another Trip</span>
+              <span class="zh">规划另一个行程</span>
+            </button>
+          </div>
+
+          <!-- BUDGET SIDEBAR -->
+          ${renderBudgetSidebar(itinerary.budgetBreakdown)}
+
+        </div>
+      </div>
+    `;
+
+    document.getElementById('appContent').innerHTML = html;
+
+    // Open first day by default
+    setTimeout(() => {
+      const firstDay = document.querySelector('.day-card');
+      if (firstDay) firstDay.classList.add('open');
+      animateBudgetBars();
+    }, 100);
+  }
+
+  function renderFlights(origin, dest, dateFrom) {
+    if (!flights || !flights.calendar) return '';
+
+    const calendar = flights.calendar;
+    const calDates = Object.keys(calendar).sort();
+    const cheapest = flights.cheapest;
+
+    const originCode = origin.match(/\(([A-Z]{3})\)/) ? origin.match(/\(([A-Z]{3})\)/)[1] : origin.slice(0,3).toUpperCase();
+    const destCode = dest.match(/\(([A-Z]{3})\)/) ? dest.match(/\(([A-Z]{3})\)/)[1] : dest.slice(0,3).toUpperCase();
+
+    const calHtml = calDates.map(date => {
+      const f = calendar[date];
+      const isBest = cheapest && f.price === cheapest.price;
+      const d = new Date(date);
+      const label = d.toLocaleDateString('en', { month:'short', day:'numeric' });
+      return `
+        <div class="cal-item ${isBest ? 'best' : ''}" onclick="window.open('${f.link}','_blank')">
+          <div class="cal-date">${label}</div>
+          <div class="cal-price">A$${f.price}</div>
+          <div class="cal-badge">BEST</div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="section-card">
+        <div class="section-card-header">
+          <div class="section-card-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21 4 19.5 2.5S18 2 16.5 3.5L13 7 4.8 5.2l-2 2 6.3 3.6L5 16l-1.5.4L2 18l2 .5.5 2 1.5-1.5.5-1.5 4-4.1 3.6 6.3 2-2z"/></svg>
+            <span class="en">Flights</span>
+            <span class="zh">机票</span>
+          </div>
+          <span style="font-size:12px;color:var(--text-secondary);" class="en">7-day price comparison</span>
+          <span style="font-size:12px;color:var(--text-secondary);" class="zh">7天价格对比</span>
+        </div>
+        <div class="section-card-body">
+          ${cheapest ? `
+            <div class="flight-best">
+              <div class="flight-route">
+                <div>
+                  <div class="flight-city-code">${originCode}</div>
+                  <div class="flight-city-name">${origin.replace(/\s*\([A-Z]+\)/,'')}</div>
+                </div>
+                <div class="flight-arrow">
+                  <div class="flight-line"></div>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(201,168,76,0.7)" stroke-width="1.5"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21 4 19.5 2.5S18 2 16.5 3.5L13 7 4.8 5.2l-2 2 6.3 3.6L5 16l-1.5.4L2 18l2 .5.5 2 1.5-1.5.5-1.5 4-4.1 3.6 6.3 2-2z"/></svg>
+                  <div class="flight-line"></div>
+                </div>
+                <div>
+                  <div class="flight-city-code">${destCode}</div>
+                  <div class="flight-city-name">${dest.replace(/\s*\([A-Z]+\)/,'')}</div>
+                </div>
+              </div>
+              <div style="text-align:center;">
+                <div class="flight-price-big">A$${cheapest.price}</div>
+                <div class="flight-price-note en">${cheapest.direct ? 'Direct' : cheapest.transfers + ' stop'} · ${cheapest.airline} · ${cheapest.date}</div>
+                <div class="flight-price-note zh">${cheapest.direct ? '直飞' : cheapest.transfers + '次中转'} · ${cheapest.airline} · ${cheapest.date}</div>
+              </div>
+              <a href="${cheapest.link}" target="_blank" class="flight-book-btn">
+                <span class="en">Search This Flight</span>
+                <span class="zh">搜索此航班</span>
+              </a>
+            </div>
+            <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;" class="en">Compare prices across 7 days — click any date to search:</p>
+            <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;" class="zh">对比7天内各日期价格 — 点击任意日期搜索：</p>
+          ` : '<p style="color:var(--text-secondary);font-size:14px;" class="en">Flight data not available. Please search directly on your preferred platform.</p><p style="color:var(--text-secondary);font-size:14px;" class="zh">暂无机票数据，请直接在你偏好的平台搜索。</p>'}
+          <div class="price-cal">${calHtml}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderDays(days) {
+    return days.map((day, i) => `
+      <div class="day-card" id="day-${i}">
+        <div class="day-header" onclick="toggleDay(${i})">
+          <div class="day-num-badge">${day.day}</div>
+          <div class="day-header-info">
+            <div class="day-title">${day.title || ''}</div>
+            <div class="day-date">${day.date || ''}</div>
+          </div>
+          <div class="day-city-tag">${day.city || ''}</div>
+          <svg class="day-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="day-body">
+          <div class="time-slot">
+            <div class="time-label">
+              <div class="time-icon morning">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f0c040" stroke-width="1.5"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/></svg>
+              </div>
+              <div class="time-tag en">Morning</div>
+              <div class="time-tag zh">上午</div>
+            </div>
+            <div class="time-content"><p>${day.morning || ''}</p></div>
+          </div>
+          <div class="time-slot">
+            <div class="time-label">
+              <div class="time-icon afternoon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c9a84c" stroke-width="1.5"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+              </div>
+              <div class="time-tag en">Afternoon</div>
+              <div class="time-tag zh">下午</div>
+            </div>
+            <div class="time-content"><p>${day.afternoon || ''}</p></div>
+          </div>
+          <div class="time-slot">
+            <div class="time-label">
+              <div class="time-icon evening">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8080c0" stroke-width="1.5"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+              </div>
+              <div class="time-tag en">Evening</div>
+              <div class="time-tag zh">晚上</div>
+            </div>
+            <div class="time-content"><p>${day.evening || ''}</p></div>
+          </div>
+          ${day.meals ? `
+            <div class="meals-row">
+              ${day.meals.breakfast ? `<div class="meal-item"><div class="meal-dot"></div><div class="meal-text"><strong class="en">Breakfast</strong><strong class="zh">早餐</strong>${day.meals.breakfast}</div></div>` : ''}
+              ${day.meals.lunch ? `<div class="meal-item"><div class="meal-dot"></div><div class="meal-text"><strong class="en">Lunch</strong><strong class="zh">午餐</strong>${day.meals.lunch}</div></div>` : ''}
+              ${day.meals.dinner ? `<div class="meal-item"><div class="meal-dot"></div><div class="meal-text"><strong class="en">Dinner</strong><strong class="zh">晚餐</strong>${day.meals.dinner}</div></div>` : ''}
+            </div>
+          ` : ''}
+          ${day.tips ? `
+            <div class="day-tip">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span>${day.tips}</span>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function renderHotels(hotels, checkIn, checkOut) {
+    if (!hotels || hotels.length === 0) return '';
+    const ciEnc = encodeURIComponent(checkIn);
+    const coEnc = encodeURIComponent(checkOut);
+
+    return `
+      <div class="section-card">
+        <div class="section-card-header">
+          <div class="section-card-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <span class="en">Hotel Recommendations</span>
+            <span class="zh">酒店推荐</span>
+          </div>
+        </div>
+        <div class="section-card-body">
+          <p style="font-size:13px;color:var(--text-secondary);margin-bottom:20px;" class="en">Selected to match your preferences. Click any platform to check live prices.</p>
+          <p style="font-size:13px;color:var(--text-secondary);margin-bottom:20px;" class="zh">根据你的偏好精选推荐，点击任意平台查看实时价格。</p>
+          ${hotels.map(cityHotels => `
+            <div style="margin-bottom:24px;">
+              <div style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:var(--gold);font-weight:500;margin-bottom:14px;">${cityHotels.city}</div>
+              ${(cityHotels.recommendations || []).map(h => `
+                <div class="hotel-card">
+                  <div class="hotel-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c9a84c" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                  </div>
+                  <div class="hotel-info">
+                    <div class="hotel-name">${h.name}</div>
+                    <div class="hotel-location">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                      ${h.location}
+                    </div>
+                    <div class="hotel-why">${h.whyRecommended}</div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                      <div>
+                        <div class="hotel-price">A$${h.pricePerNight} <span class="en">/ night (est.)</span><span class="zh">/ 晚（参考价）</span></div>
+                        <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;" class="en">Verify current price on booking platform</div>
+                        <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;" class="zh">请在预订平台确认实时价格</div>
+                      </div>
+                      <div class="hotel-links">
+                        <a href="https://www.agoda.com/search?city=${encodeURIComponent(cityHotels.city)}&checkIn=${ciEnc}&checkOut=${coEnc}&searchText=${encodeURIComponent(h.name)}" target="_blank" class="hotel-link">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                          Agoda
+                        </a>
+                        <a href="https://www.booking.com/search.html?ss=${encodeURIComponent(h.name + ' ' + cityHotels.city)}&checkin=${checkIn}&checkout=${checkOut}" target="_blank" class="hotel-link">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                          Booking.com
+                        </a>
+                        <a href="https://www.expedia.com/Hotel-Search?destination=${encodeURIComponent(h.name + ' ' + cityHotels.city)}&startDate=${checkIn}&endDate=${checkOut}" target="_blank" class="hotel-link">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                          Expedia
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderFood(foods) {
+    if (!foods || foods.length === 0) return '';
+    return `
+      <div class="section-card">
+        <div class="section-card-header">
+          <div class="section-card-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+            <span class="en">Food Highlights</span>
+            <span class="zh">美食亮点</span>
+          </div>
+        </div>
+        <div class="section-card-body">
+          <div class="food-grid">
+            ${foods.map(f => `<div class="food-item">${f}</div>`).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderTips(tips) {
+    if (!tips || tips.length === 0) return '';
+    return `
+      <div class="section-card">
+        <div class="section-card-header">
+          <div class="section-card-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span class="en">Practical Tips</span>
+            <span class="zh">实用旅行贴士</span>
+          </div>
+        </div>
+        <div class="section-card-body">
+          ${tips.map((t, i) => `
+            <div class="tip-item">
+              <div class="tip-num">${i+1}</div>
+              <div>${t}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderBudgetSidebar(budget) {
+    if (!budget) return '';
+    const total = budget.total || 1;
+    const items = [
+      { key: 'flights',       colorEn: 'Flights',       colorZh: '机票',   color: '#c9a84c' },
+      { key: 'accommodation', colorEn: 'Accommodation', colorZh: '住宿',   color: '#8b7230' },
+      { key: 'food',          colorEn: 'Food',          colorZh: '餐饮',   color: '#a05a34' },
+      { key: 'activities',    colorEn: 'Activities',    colorZh: '活动',   color: '#2c5f8a' },
+      { key: 'transport',     colorEn: 'Transport',     colorZh: '交通',   color: '#2d7a4f' },
+    ].filter(i => budget[i.key] > 0);
+
+    return `
+      <div class="sidebar-card">
+        <div class="sidebar-title en">Budget Breakdown</div>
+        <div class="sidebar-title zh">预算分解</div>
+        ${items.map(item => `
+          <div class="budget-row" data-pct="${Math.round((budget[item.key]/total)*100)}">
+            <div class="budget-label">
+              <div class="budget-dot" style="background:${item.color};"></div>
+              <span class="en">${item.colorEn}</span>
+              <span class="zh">${item.colorZh}</span>
+            </div>
+            <div class="budget-bar-wrap">
+              <div class="budget-bar" style="background:${item.color};width:0%;" data-width="${Math.round((budget[item.key]/total)*100)}%"></div>
+            </div>
+            <div class="budget-amount">A$${budget[item.key]?.toLocaleString()}</div>
+          </div>
+        `).join('')}
+        <div class="budget-total">
+          <div class="budget-total-label en">Estimated Total</div>
+          <div class="budget-total-label zh">预计总计</div>
+          <div class="budget-total-amount">A$${budget.total?.toLocaleString()}</div>
+        </div>
+        <p style="font-size:11px;color:var(--text-secondary);margin-top:12px;line-height:1.6;" class="en">Estimates only. Verify all prices before booking.</p>
+        <p style="font-size:11px;color:var(--text-secondary);margin-top:12px;line-height:1.6;" class="zh">仅供参考，预订前请核实所有价格。</p>
+      </div>
+    `;
+  }
+
+  function animateBudgetBars() {
+    document.querySelectorAll('.budget-bar[data-width]').forEach(bar => {
+      setTimeout(() => { bar.style.width = bar.dataset.width; }, 200);
+    });
+  }
+
+  function toggleDay(i) {
+    const card = document.getElementById('day-' + i);
+    if (card) card.classList.toggle('open');
+  }
+
+  function toggleAllDays() {
+    const cards = document.querySelectorAll('.day-card');
+    const anyOpen = Array.from(cards).some(c => c.classList.contains('open'));
+    cards.forEach(c => anyOpen ? c.classList.remove('open') : c.classList.add('open'));
+  }
+
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    document.getElementById('toastMsg').textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 3500);
+  }
+
+  function sendEmail() {
+    // In production this would call an API endpoint
+    const msg = lang === 'zh'
+      ? '行程已发送至您的注册邮箱，请查收。'
+      : 'Itinerary sent to your registered email.';
+    showToast(msg);
+  }
+
+  function downloadPDF() {
+    const el = document.getElementById('pdfContent');
+    if (!el) return;
+
+    // Open all days for PDF
+    document.querySelectorAll('.day-card').forEach(c => c.classList.add('open'));
+
+    const btn = document.querySelector('.btn-gold');
+    if (btn) { btn.textContent = lang === 'zh' ? '生成中…' : 'Generating…'; btn.disabled = true; }
+
+    const dest = localStorage.getItem('ge_dest') || 'itinerary';
+    const filename = 'GlobalExplore-' + dest.replace(/[^a-z0-9]/gi,'_') + '.pdf';
+
+    const opt = {
+      margin:       [10, 10, 10, 10],
+      filename:     filename,
+      image:        { type: 'jpeg', quality: 0.95 },
+      html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+    };
+
+    html2pdf().set(opt).from(el).save().then(() => {
+      if (btn) {
+        btn.textContent = lang === 'zh' ? '下载PDF' : 'Download PDF';
+        btn.disabled = false;
+      }
+      showToast(lang === 'zh' ? 'PDF已下载' : 'PDF downloaded');
+    });
+  }
+
+  function formatDateRange(from, to, l) {
+    if (!from || !to) return '';
+    const f = new Date(from);
+    const t = new Date(to);
+    if (l === 'zh') {
+      return `${f.getMonth()+1}月${f.getDate()}日 — ${t.getMonth()+1}月${t.getDate()}日`;
+    }
+    return f.toLocaleDateString('en', {month:'short',day:'numeric'}) + ' — ' + t.toLocaleDateString('en', {month:'short',day:'numeric'});
+  }
+
+  // Init on load
+  window.addEventListener('load', init);
+</script>
+</body>
+</html>
