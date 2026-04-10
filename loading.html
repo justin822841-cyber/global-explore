@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global Explore — Planning Your Trip</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0f1117;
+    --paper: #f8f5ef;
+    --gold: #c9a84c;
+    --gold-light: #e8d5a3;
+    --mist: #e8e4dc;
+    --white: #ffffff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--ink);
+    color: var(--white);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  /* LOGO */
+  .logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--white);
+    position: absolute;
+    top: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .logo span { color: var(--gold); }
+
+  /* SCENE */
+  .scene {
+    width: 600px;
+    max-width: 90vw;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  /* SKY */
+  .sky {
+    width: 100%;
+    height: 120px;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(to bottom, #0f1117 0%, #1a2040 100%);
+    border-radius: 4px 4px 0 0;
+  }
+
+  /* STARS */
+  .star {
+    position: absolute;
+    background: var(--gold);
+    border-radius: 0;
+    animation: twinkle 2s infinite;
+  }
+  @keyframes twinkle {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+  }
+
+  /* CITY SILHOUETTE */
+  .city {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+  }
+  .city-bg { animation: citySlide 8s linear infinite; }
+  @keyframes citySlide {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  /* GROUND */
+  .ground {
+    width: 100%;
+    height: 8px;
+    background: var(--gold);
+    position: relative;
+  }
+  .ground::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: rgba(0,0,0,0.3);
+  }
+
+  /* ROAD */
+  .road {
+    width: 100%;
+    height: 40px;
+    background: #1a1c24;
+    position: relative;
+    overflow: hidden;
+  }
+  .road-line {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 3px;
+    width: 40px;
+    background: rgba(201,168,76,0.3);
+    animation: roadMove 0.8s linear infinite;
+  }
+  @keyframes roadMove {
+    0% { transform: translateY(-50%) translateX(600px); }
+    100% { transform: translateY(-50%) translateX(-60px); }
+  }
+
+  /* PIXEL FAMILY */
+  .family-wrapper {
+    position: relative;
+    width: 100%;
+    height: 80px;
+    background: #0f1117;
+    overflow: hidden;
+  }
+  .family {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    animation: familyWalk 0.6s steps(2) infinite;
+  }
+  @keyframes familyWalk {
+    0% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(-2px); }
+    100% { transform: translateX(-50%) translateY(0); }
+  }
+
+  /* PIXEL ART CHARACTERS using CSS */
+  .pixel-person {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    image-rendering: pixelated;
+  }
+
+  /* Adult 1 */
+  .adult1 .head {
+    width: 12px; height: 10px;
+    background: #f4c88a;
+    border: 1px solid #c9a84c;
+    position: relative;
+  }
+  .adult1 .body {
+    width: 14px; height: 14px;
+    background: #c9a84c;
+    border: 1px solid #8b7230;
+  }
+  .adult1 .legs {
+    display: flex;
+    gap: 2px;
+  }
+  .adult1 .leg {
+    width: 5px; height: 8px;
+    background: #2c3e6b;
+    animation: legWalk 0.4s steps(2) infinite;
+  }
+  .adult1 .leg:nth-child(2) { animation-delay: 0.2s; }
+
+  /* Adult 2 */
+  .adult2 .head {
+    width: 12px; height: 10px;
+    background: #f4c88a;
+    border: 1px solid #c9a84c;
+  }
+  .adult2 .hair {
+    position: absolute;
+    top: -3px; left: 0; right: 0;
+    height: 4px;
+    background: #5c3a1e;
+  }
+  .adult2 .body {
+    width: 14px; height: 14px;
+    background: #8b4c8c;
+    border: 1px solid #5c2e5c;
+  }
+  .adult2 .legs { display: flex; gap: 2px; }
+  .adult2 .leg {
+    width: 5px; height: 8px;
+    background: #1a1a2e;
+    animation: legWalk 0.4s steps(2) infinite;
+    animation-delay: 0.1s;
+  }
+  .adult2 .leg:nth-child(2) { animation-delay: 0.3s; }
+
+  /* Child */
+  .child1 .head {
+    width: 10px; height: 8px;
+    background: #f4c88a;
+    border: 1px solid #c9a84c;
+  }
+  .child1 .body {
+    width: 10px; height: 10px;
+    background: #e05555;
+    border: 1px solid #8b2020;
+  }
+  .child1 .legs { display: flex; gap: 1px; }
+  .child1 .leg {
+    width: 4px; height: 6px;
+    background: #2c3e6b;
+    animation: legWalk 0.35s steps(2) infinite;
+    animation-delay: 0.15s;
+  }
+  .child1 .leg:nth-child(2) { animation-delay: 0.35s; }
+
+  /* Luggage */
+  .luggage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    animation: luggageBounce 0.4s steps(2) infinite;
+  }
+  .luggage-body {
+    width: 14px; height: 12px;
+    background: var(--gold);
+    border: 1px solid #8b7230;
+    position: relative;
+  }
+  .luggage-body::after {
+    content: '';
+    position: absolute;
+    top: 3px; left: 2px; right: 2px;
+    height: 1px;
+    background: rgba(0,0,0,0.3);
+  }
+  .luggage-wheels {
+    display: flex;
+    gap: 6px;
+    margin-top: 1px;
+  }
+  .luggage-wheel {
+    width: 4px; height: 3px;
+    background: #333;
+    border-radius: 0 0 2px 2px;
+  }
+  .luggage-handle {
+    width: 8px; height: 4px;
+    border: 1px solid var(--gold);
+    border-bottom: none;
+    margin-bottom: 1px;
+  }
+
+  @keyframes legWalk {
+    0% { transform: skewX(10deg); }
+    100% { transform: skewX(-10deg); }
+  }
+  @keyframes luggageBounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-1px); }
+  }
+
+  /* PLANE */
+  .plane {
+    position: absolute;
+    top: 20px;
+    animation: planeFly 6s linear infinite;
+    font-size: 0;
+  }
+  @keyframes planeFly {
+    0% { left: -60px; top: 30px; }
+    30% { top: 15px; }
+    70% { top: 25px; }
+    100% { left: calc(100% + 60px); top: 20px; }
+  }
+
+  /* PROGRESS */
+  .progress-section {
+    width: 100%;
+    background: #0f1117;
+    padding: 32px 0 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .progress-bar-wrap {
+    width: 100%;
+    max-width: 400px;
+    height: 3px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .progress-bar {
+    height: 100%;
+    background: var(--gold);
+    border-radius: 2px;
+    transition: width 0.8s ease;
+    width: 0%;
+  }
+
+  .progress-text {
+    font-size: 14px;
+    color: rgba(255,255,255,0.6);
+    letter-spacing: 0.04em;
+    text-align: center;
+    min-height: 20px;
+    transition: opacity 0.3s;
+  }
+  .progress-text strong {
+    color: var(--gold);
+    font-weight: 500;
+  }
+
+  .progress-steps {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .step-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    transition: all 0.4s;
+  }
+  .step-dot.active {
+    background: var(--gold);
+    box-shadow: 0 0 8px rgba(201,168,76,0.5);
+  }
+  .step-dot.done {
+    background: rgba(201,168,76,0.4);
+  }
+
+  .destination-hint {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px;
+    font-weight: 300;
+    color: rgba(255,255,255,0.15);
+    letter-spacing: 0.1em;
+    margin-top: 8px;
+  }
+  .destination-hint span {
+    color: rgba(201,168,76,0.4);
+  }
+</style>
+</head>
+<body>
+<div class="logo">Global <span>Explore</span></div>
+
+<div class="scene">
+  <!-- SKY WITH STARS AND PLANE -->
+  <div class="sky">
+    <div id="starsContainer"></div>
+    <div class="city">
+      <svg class="city-bg" width="1200" height="60" viewBox="0 0 1200 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Buildings silhouette repeated -->
+        <rect x="0" y="20" width="30" height="40" fill="rgba(201,168,76,0.15)"/>
+        <rect x="35" y="10" width="20" height="50" fill="rgba(201,168,76,0.1)"/>
+        <rect x="60" y="25" width="40" height="35" fill="rgba(201,168,76,0.12)"/>
+        <rect x="105" y="5" width="15" height="55" fill="rgba(201,168,76,0.18)"/>
+        <rect x="125" y="15" width="35" height="45" fill="rgba(201,168,76,0.1)"/>
+        <rect x="165" y="30" width="25" height="30" fill="rgba(201,168,76,0.14)"/>
+        <rect x="195" y="8" width="18" height="52" fill="rgba(201,168,76,0.16)"/>
+        <rect x="220" y="20" width="45" height="40" fill="rgba(201,168,76,0.1)"/>
+        <rect x="270" y="12" width="22" height="48" fill="rgba(201,168,76,0.15)"/>
+        <rect x="298" y="28" width="30" height="32" fill="rgba(201,168,76,0.11)"/>
+        <!-- Tokyo Tower like structure -->
+        <polygon points="340,0 348,60 332,60" fill="rgba(201,168,76,0.2)"/>
+        <rect x="334" y="20" width="12" height="3" fill="rgba(201,168,76,0.25)"/>
+        <rect x="336" y="35" width="8" height="2" fill="rgba(201,168,76,0.2)"/>
+        <rect x="370" y="15" width="28" height="45" fill="rgba(201,168,76,0.1)"/>
+        <rect x="403" y="25" width="20" height="35" fill="rgba(201,168,76,0.13)"/>
+        <rect x="428" y="5" width="15" height="55" fill="rgba(201,168,76,0.17)"/>
+        <rect x="448" y="18" width="40" height="42" fill="rgba(201,168,76,0.1)"/>
+        <rect x="493" y="22" width="25" height="38" fill="rgba(201,168,76,0.12)"/>
+        <!-- Eiffel Tower like -->
+        <polygon points="540,0 550,60 530,60" fill="rgba(201,168,76,0.18)"/>
+        <rect x="532" y="15" width="16" height="2" fill="rgba(201,168,76,0.22)"/>
+        <rect x="534" y="30" width="12" height="2" fill="rgba(201,168,76,0.18)"/>
+        <rect x="560" y="20" width="30" height="40" fill="rgba(201,168,76,0.1)"/>
+        <rect x="595" y="10" width="18" height="50" fill="rgba(201,168,76,0.14)"/>
+        <!-- Repeat for seamless -->
+        <rect x="620" y="20" width="30" height="40" fill="rgba(201,168,76,0.15)"/>
+        <rect x="655" y="10" width="20" height="50" fill="rgba(201,168,76,0.1)"/>
+        <rect x="680" y="25" width="40" height="35" fill="rgba(201,168,76,0.12)"/>
+        <rect x="725" y="5" width="15" height="55" fill="rgba(201,168,76,0.18)"/>
+        <rect x="745" y="15" width="35" height="45" fill="rgba(201,168,76,0.1)"/>
+        <rect x="785" y="30" width="25" height="30" fill="rgba(201,168,76,0.14)"/>
+        <rect x="815" y="8" width="18" height="52" fill="rgba(201,168,76,0.16)"/>
+        <rect x="840" y="20" width="45" height="40" fill="rgba(201,168,76,0.1)"/>
+        <rect x="890" y="12" width="22" height="48" fill="rgba(201,168,76,0.15)"/>
+        <polygon points="960,0 968,60 952,60" fill="rgba(201,168,76,0.2)"/>
+        <rect x="990" y="15" width="28" height="45" fill="rgba(201,168,76,0.1)"/>
+        <rect x="1023" y="25" width="20" height="35" fill="rgba(201,168,76,0.13)"/>
+        <rect x="1048" y="5" width="15" height="55" fill="rgba(201,168,76,0.17)"/>
+        <polygon points="1160,0 1170,60 1150,60" fill="rgba(201,168,76,0.18)"/>
+        <rect x="1180" y="20" width="30" height="40" fill="rgba(201,168,76,0.1)"/>
+      </svg>
+    </div>
+    <!-- Pixel plane -->
+    <div class="plane">
+      <svg width="48" height="20" viewBox="0 0 48 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="8" y="7" width="32" height="6" fill="#c9a84c"/>
+        <rect x="36" y="5" width="8" height="10" fill="#c9a84c"/>
+        <rect x="40" y="4" width="8" height="2" fill="#e8d5a3"/>
+        <rect x="40" y="14" width="6" height="2" fill="#e8d5a3"/>
+        <rect x="0" y="9" width="10" height="2" fill="#c9a84c"/>
+        <rect x="12" y="3" width="16" height="4" fill="#e8d5a3"/>
+        <rect x="14" y="13" width="10" height="3" fill="#e8d5a3"/>
+        <rect x="38" y="8" width="2" height="4" fill="#f8f5ef"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- GROUND LINE -->
+  <div class="ground"></div>
+
+  <!-- ROAD WITH DASHES -->
+  <div class="road" id="road"></div>
+
+  <!-- PIXEL FAMILY WALKING -->
+  <div class="family-wrapper">
+    <div class="family">
+      <!-- Adult 1 with luggage -->
+      <div style="display:flex;align-items:flex-end;gap:3px;">
+        <div class="pixel-person adult1">
+          <div class="head" style="position:relative;">
+            <div style="position:absolute;top:-4px;left:1px;width:10px;height:4px;background:#3a2a10;"></div>
+          </div>
+          <div class="body"></div>
+          <div class="legs">
+            <div class="leg"></div>
+            <div class="leg"></div>
+          </div>
+        </div>
+        <div class="luggage" style="margin-bottom:8px;">
+          <div class="luggage-handle"></div>
+          <div class="luggage-body"></div>
+          <div class="luggage-wheels">
+            <div class="luggage-wheel"></div>
+            <div class="luggage-wheel"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Adult 2 -->
+      <div class="pixel-person adult2" style="margin-left:4px;">
+        <div class="head" style="position:relative;">
+          <div style="position:absolute;top:-3px;left:0;width:12px;height:4px;background:#5c3a1e;border-radius:2px 2px 0 0;"></div>
+        </div>
+        <div class="body"></div>
+        <div class="legs">
+          <div class="leg"></div>
+          <div class="leg"></div>
+        </div>
+      </div>
+
+      <!-- Child -->
+      <div class="pixel-person child1" style="margin-left:3px;">
+        <div class="head" style="position:relative;">
+          <div style="position:absolute;top:-3px;left:0;width:10px;height:3px;background:#c9a84c;"></div>
+        </div>
+        <div class="body"></div>
+        <div class="legs">
+          <div class="leg"></div>
+          <div class="leg"></div>
+        </div>
+      </div>
+
+      <!-- Small luggage -->
+      <div class="luggage" style="margin-bottom:6px;margin-left:2px;transform:scale(0.8);transform-origin:bottom;">
+        <div class="luggage-handle" style="width:6px;height:3px;border-color:#e05555;"></div>
+        <div class="luggage-body" style="width:11px;height:9px;background:#e05555;border-color:#8b2020;"></div>
+        <div class="luggage-wheels">
+          <div class="luggage-wheel"></div>
+          <div class="luggage-wheel"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROGRESS SECTION -->
+  <div class="progress-section">
+    <div id="destinationHint" class="destination-hint">
+      <span id="destText">—</span>
+    </div>
+
+    <div class="progress-steps">
+      <div class="step-dot active" id="dot0"></div>
+      <div style="width:20px;height:1px;background:rgba(255,255,255,0.1);"></div>
+      <div class="step-dot" id="dot1"></div>
+      <div style="width:20px;height:1px;background:rgba(255,255,255,0.1);"></div>
+      <div class="step-dot" id="dot2"></div>
+      <div style="width:20px;height:1px;background:rgba(255,255,255,0.1);"></div>
+      <div class="step-dot" id="dot3"></div>
+    </div>
+
+    <div class="progress-bar-wrap">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <div class="progress-text" id="progressText">
+      <strong>Searching</strong> 500+ airlines for the best fares…
+    </div>
+  </div>
+</div>
+
+<script>
+  // Get language and destination from URL params
+  const params = new URLSearchParams(window.location.search);
+  const lang = params.get('lang') || 'en';
+  const dest = params.get('dest') || '';
+
+  // Show destination
+  if (dest) {
+    document.getElementById('destText').textContent = dest;
+  }
+
+  // Stars
+  const starsContainer = document.getElementById('starsContainer');
+  for (let i = 0; i < 30; i++) {
+    const star = document.createElement('div');
+    star.className = 'star';
+    const size = Math.random() > 0.7 ? 3 : 2;
+    star.style.cssText = `
+      width:${size}px;height:${size}px;
+      top:${Math.random() * 80}%;
+      left:${Math.random() * 100}%;
+      animation-delay:${Math.random() * 2}s;
+      animation-duration:${1.5 + Math.random() * 2}s;
+    `;
+    starsContainer.appendChild(star);
+  }
+
+  // Road lines
+  const road = document.getElementById('road');
+  for (let i = 0; i < 8; i++) {
+    const line = document.createElement('div');
+    line.className = 'road-line';
+    line.style.animationDelay = `${i * 0.1}s`;
+    road.appendChild(line);
+  }
+
+  // Progress steps
+  const steps = {
+    en: [
+      { text: '<strong>Searching</strong> 500+ airlines for the best fares…', progress: 15 },
+      { text: '<strong>Finding</strong> the cheapest dates in your 7-day window…', progress: 35 },
+      { text: '<strong>Searching</strong> hotels and local activities…', progress: 55 },
+      { text: '<strong>Building</strong> your personalised day-by-day itinerary…', progress: 80 },
+      { text: 'Almost ready — <strong>finalising your plan…</strong>', progress: 95 },
+    ],
+    zh: [
+      { text: '正在搜索 <strong>500+</strong> 家航空公司的最优票价…', progress: 15 },
+      { text: '正在查找 <strong>7天内</strong> 最便宜的出行日期…', progress: 35 },
+      { text: '正在搜索 <strong>酒店</strong> 和当地活动…', progress: 55 },
+      { text: '正在为你生成 <strong>个性化每日行程</strong>…', progress: 80 },
+      { text: '即将完成 — <strong>正在整理你的行程方案…</strong>', progress: 95 },
+    ]
+  };
+
+  const currentSteps = steps[lang] || steps.en;
+  let currentStep = 0;
+
+  const progressBar = document.getElementById('progressBar');
+  const progressText = document.getElementById('progressText');
+  const dots = [0,1,2,3].map(i => document.getElementById('dot' + i));
+
+  function updateProgress(stepIndex) {
+    const step = currentSteps[Math.min(stepIndex, currentSteps.length - 1)];
+    progressBar.style.width = step.progress + '%';
+    progressText.style.opacity = '0';
+    setTimeout(() => {
+      progressText.innerHTML = step.text;
+      progressText.style.opacity = '1';
+    }, 300);
+
+    dots.forEach((dot, i) => {
+      dot.classList.remove('active', 'done');
+      if (i < stepIndex) dot.classList.add('done');
+      if (i === stepIndex) dot.classList.add('active');
+    });
+  }
+
+  // Animate progress
+  const intervals = [0, 2000, 5000, 9000, 13000];
+  intervals.forEach((delay, i) => {
+    setTimeout(() => updateProgress(i), delay);
+  });
+
+  // Listen for completion message from parent
+  window.addEventListener('message', (e) => {
+    if (e.data === 'complete') {
+      progressBar.style.width = '100%';
+      progressText.innerHTML = lang === 'zh'
+        ? '完成！正在跳转到你的行程…'
+        : 'Done! Taking you to your itinerary…';
+      dots.forEach(d => { d.classList.remove('active'); d.classList.add('done'); });
+    }
+  });
+
+  // Check if results are ready (via localStorage)
+  const checkInterval = setInterval(() => {
+    const results = localStorage.getItem('ge_results');
+    if (results) {
+      clearInterval(checkInterval);
+      progressBar.style.width = '100%';
+      const doneText = lang === 'zh' ? '完成！正在跳转…' : 'Done! Redirecting…';
+      progressText.innerHTML = doneText;
+      setTimeout(() => {
+        window.location.href = '/results.html?lang=' + lang;
+      }, 800);
+    }
+  }, 500);
+
+  // Safety timeout — redirect after 45 seconds regardless
+  setTimeout(() => {
+    const results = localStorage.getItem('ge_results');
+    if (!results) {
+      localStorage.setItem('ge_results', JSON.stringify({ error: 'timeout' }));
+    }
+  }, 45000);
+</script>
+</body>
+</html>
