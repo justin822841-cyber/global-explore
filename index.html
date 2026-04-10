@@ -1032,17 +1032,110 @@
 
   // ── FORM SUBMIT ──
   function handleSubmit(e) {
-    e.preventDefault();
-    const btn = document.getElementById('submitBtn');
-    const isZh = document.body.classList.contains('lang-zh');
-    btn.textContent = isZh ? '正在搜索，请稍候…' : 'Searching across providers…';
-    btn.disabled = true;
-    setTimeout(() => {
-      btn.textContent = isZh
-        ? '行程方案已发送至您的邮箱，请查收。'
-        : 'Your itinerary is on its way — please check your email.';
-    }, 2500);
+  e.preventDefault();
+  const isZh = document.body.classList.contains('lang-zh');
+
+  // Collect form data
+  const origin = document.getElementById('originInput')?.value || '';
+  const dest   = document.getElementById('destInput')?.value || '';
+  const dateFrom = document.querySelector('input[type="date"]')?.value || '';
+  const dateTo   = document.querySelectorAll('input[type="date"]')[1]?.value || '';
+  const email    = document.querySelector('input[type="email"]')?.value || '';
+
+  // Save basics to localStorage for results page
+  localStorage.removeItem('ge_results');
+  localStorage.setItem('ge_origin',   origin);
+  localStorage.setItem('ge_dest',     dest);
+  localStorage.setItem('ge_dateFrom', dateFrom);
+  localStorage.setItem('ge_dateTo',   dateTo);
+  localStorage.setItem('ge_adults',   String(counts.adults));
+  localStorage.setItem('ge_lang',     isZh ? 'zh' : 'en');
+
+  // Collect selected chips
+  const travelStyle = Array.from(document.querySelectorAll('.chip.selected'))
+    .map(c => c.textContent.trim())
+    .filter(Boolean);
+
+  const pace    = document.querySelector('.chip[onclick*="pace"].selected')?.textContent.trim() || '';
+  const purpose = document.querySelector('.chip[onclick*="purpose"].selected')?.textContent.trim() || '';
+
+  const formData = {
+    origin, destination: dest,
+    departDate: dateFrom, returnDate: dateTo,
+    adults:   counts.adults,
+    children: counts.children,
+    infants:  counts.infants,
+    seniors:  counts.seniors,
+    budget:      document.getElementById('budgetSelect')?.value || '',
+    flightPreference: document.getElementById('flightPrefSelect')?.value || '',
+    accommodationLevel: document.getElementById('accomLevelSelect')?.value || '',
+    travelStyle, pace, purpose,
+    dietary: document.getElementById('dietSelect')?.value || '',
+    hasVisited: document.querySelector('select[required]')?.value || '',
+    localTransport: document.querySelector('.chip[onclick*="transport"].selected')?.textContent.trim() || '',
+    crowdPreference: document.querySelector('.chip[onclick*="crowd"].selected')?.textContent.trim() || '',
+    specialRequests: document.querySelector('textarea')?.value || '',
+    anchors: getAnchors()
+  };
+
+  // Go to loading page
+  const destClean = dest.replace(/\s*\([A-Z]+\)/, '').trim();
+  window.location.href = `/loading.html?lang=${isZh?'zh':'en'}&dest=${encodeURIComponent(destClean)}`;
+
+  // Call APIs in background (use a small delay to let page change first)
+  setTimeout(() => callAPIs(formData), 100);
+}
+
+function getAnchors() {
+  const anchors = [];
+  document.querySelectorAll('.anchor-item').forEach(item => {
+    const inputs = item.querySelectorAll('input');
+    const city  = inputs[0]?.value || '';
+    const date  = inputs[1]?.value || '';
+    const notes = inputs[2]?.value || '';
+    const types = Array.from(item.querySelectorAll('.anchor-type-chip.selected'))
+      .map(c => c.textContent.trim());
+    if (city || date) anchors.push({ city, date, notes, type: types.join(', ') });
+  });
+  return anchors;
+}
+
+async function callAPIs(formData) {
+  try {
+    // Call flights and itinerary in parallel
+    const [flightsRes, itineraryRes] = await Promise.all([
+      fetch('/api/flights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          origin:      formData.origin.match(/\(([A-Z]{3})\)/)?.[1] || formData.origin.slice(0,3).toUpperCase(),
+          destination: formData.destination.match(/\(([A-Z]{3})\)/)?.[1] || formData.destination.slice(0,3).toUpperCase(),
+          date:        formData.departDate,
+          adults:      formData.adults,
+          children:    formData.children,
+          infants:     formData.infants
+        })
+      }),
+      fetch('/api/itinerary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
+    ]);
+
+    const flightsData    = await flightsRes.json();
+    const itineraryData  = await itineraryRes.json();
+
+    // Store results
+    localStorage.setItem('ge_results', JSON.stringify({
+      flights:   flightsData,
+      itinerary: itineraryData.itinerary
+    }));
+
+  } catch(err) {
+    localStorage.setItem('ge_results', JSON.stringify({ error: err.message }));
   }
+}
 </script>
 </body>
 </html>
