@@ -841,7 +841,12 @@ function addAnchor(){
       <div class="anchor-field"><label><span class="en">City / Location</span><span class="zh">城市/地点</span></label>
         <input type="text" placeholder-en="e.g. Osaka, Tokyo" placeholder-zh="例如：大阪、东京" placeholder="${isZh?'例如：大阪、东京':'e.g. Osaka, Tokyo'}"></div>
       <div class="anchor-field"><label><span class="en">Date</span><span class="zh">日期</span></label>
-        <input type="date"></div>
+        <input type="date"
+          min="${document.getElementById('departDate')?.value||''}"
+          max="${document.getElementById('returnDate')?.value||''}"
+          value="${document.getElementById('departDate')?.value||''}"
+          onchange="validateAnchorDate(this)"
+          style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);border-radius:2px;padding:10px 12px;color:var(--white);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;width:100%;color-scheme:dark;transition:border-color 0.2s;"></div>
     </div>
     <div class="anchor-row">
       <div class="anchor-field"><label><span class="en">Nights Staying</span><span class="zh">停留晚数</span></label>
@@ -1063,23 +1068,70 @@ function onDepartChange() {
 
   const depDate = new Date(depEl.value);
 
-  // Auto-set return to depart + 7 days
-  const retDate = new Date(depDate);
-  retDate.setDate(retDate.getDate() + 7);
-  retEl.value = retDate.toISOString().split('T')[0];
+  // Auto-set return to depart + 7 days if empty or before departure
+  if (!retEl.value || new Date(retEl.value) <= depDate) {
+    const retDate = new Date(depDate);
+    retDate.setDate(retDate.getDate() + 7);
+    retEl.value = retDate.toISOString().split('T')[0];
+  }
 
   // Set min on return date
   retEl.min = depEl.value;
 
-  // Set min on all anchor dates and default value
+  // Update all anchor dates
+  const retVal = retEl.value;
   document.querySelectorAll('.anchor-field input[type="date"]').forEach(el => {
     el.min = depEl.value;
-    if (!el.value) el.value = depEl.value;
+    el.max = retVal || '';
+    // If anchor has no value yet, default to departure date
+    if (!el.value) {
+      el.value = depEl.value;
+    }
+    // If anchor date is before departure, reset to departure date
+    else if (el.value < depEl.value) {
+      el.value = depEl.value;
+      el.style.borderColor = '';
+    }
+    // If anchor date is after return, mark red
+    else if (retVal && el.value > retVal) {
+      el.style.borderColor = '#e05555';
+      el.title = 'Date is after your return date';
+    } else {
+      el.style.borderColor = '';
+      el.title = '';
+    }
   });
 
-  // Clear errors
   clearError('departDate', 'departError');
   clearError('returnDate', 'returnError');
+}
+
+function onReturnChange() {
+  const depEl = document.getElementById('departDate');
+  const retEl = document.getElementById('returnDate');
+  if (!retEl.value || !depEl.value) return;
+
+  if (new Date(retEl.value) <= new Date(depEl.value)) {
+    showFieldError('returnDate', 'returnError',
+      document.body.classList.contains('lang-zh')
+        ? '返回日期必须晚于出发日期'
+        : 'Return date must be after departure date');
+  } else {
+    clearError('returnDate', 'returnError');
+    // Re-validate all anchor dates against new return date
+    document.querySelectorAll('.anchor-field input[type="date"]').forEach(el => {
+      el.max = retEl.value;
+      if (el.value && el.value > retEl.value) {
+        el.style.borderColor = '#e05555';
+        el.title = document.body.classList.contains('lang-zh')
+          ? '日期超过了回程时间'
+          : 'Date is after your return date';
+      } else {
+        el.style.borderColor = '';
+        el.title = '';
+      }
+    });
+  }
 }
 
 function onReturnChange() {
@@ -1223,6 +1275,23 @@ function restoreForm() {
       });
     }
   } catch(e) { console.log('Restore skipped:', e.message); }
+}
+
+
+function validateAnchorDate(el) {
+  const depVal = document.getElementById('departDate')?.value || '';
+  const retVal = document.getElementById('returnDate')?.value || '';
+  const isZhNow = document.body.classList.contains('lang-zh');
+  if (depVal && el.value < depVal) {
+    el.style.borderColor = '#e05555';
+    el.title = isZhNow ? '不能早于出发日期' : 'Cannot be before departure date';
+  } else if (retVal && el.value > retVal) {
+    el.style.borderColor = '#e05555';
+    el.title = isZhNow ? '日期超过了回程时间' : 'Date is after your return date';
+  } else {
+    el.style.borderColor = '';
+    el.title = '';
+  }
 }
 
 window.addEventListener('load', () => {
