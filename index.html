@@ -761,9 +761,13 @@ function setCurrency(v) {
 function detectCurrency() {
   const saved = localStorage.getItem('ge_currency');
   if (saved) { setCurrency(saved); return; }
-  const map = {'en-AU':'AUD','en-NZ':'NZD','en-GB':'GBP','en-CA':'CAD','zh-CN':'CNY','zh-TW':'TWD','zh-HK':'HKD','ja':'JPY','de':'EUR','fr':'EUR','es':'EUR','it':'EUR','en-SG':'SGD'};
-  const l = navigator.language || 'en';
-  setCurrency(map[l] || map[l.split('-')[0]] || 'USD');
+  // Only match full locale codes — default USD for everything else
+  const map = {
+    'en-AU':'AUD','en-NZ':'NZD','en-GB':'GBP','en-CA':'CAD',
+    'en-SG':'SGD','ja-JP':'JPY'
+  };
+  const l = navigator.language || 'en-US';
+  setCurrency(map[l] || 'USD');
 }
 
 // LANGUAGE
