@@ -693,23 +693,11 @@ footer{padding:32px 24px 24px;}.footer-main{flex-direction:column;gap:12px;text-
         </div>
       </div>
 
-      <!-- BLOCK 9: EMAIL -->
-      <div class="form-block" id="emailBlock">
-        <div id="emailBlock" class="form-block" style="display:none;padding:0;border:none;"></div>
-      <div class="form-block" id="emailBlockVisible">
-      <div class="block-title en">Receive Your Plan</div><div class="block-title zh">接收行程方案</div>
-        <div class="field">
-          <label><span class="en">Your Email Address</span><span class="zh">电子邮箱</span>
-            <span class="label-note en">Your complete itinerary will be sent here</span>
-            <span class="label-note zh">完整行程方案将发送至此邮箱</span>
-          </label>
-          <input type="email" id="emailInput" placeholder="your@email.com">
-        </div>
-      </div>
-
       <button type="submit" class="submit-btn" id="submitBtn">
-        <span class="en">Generate My Itinerary</span><span class="zh">生成我的行程方案</span>
+        <span class="en">Show Me My Trip &nbsp;→</span>
+        <span class="zh">让我看看我的行程 &nbsp;→</span>
       </button>
+
     </form>
   </div>
 </section>
@@ -1003,12 +991,12 @@ function handleSubmit(e) {
   const dateFrom = document.getElementById('departDate').value || '';
   const dateTo   = document.getElementById('returnDate').value || '';
 
-  // Use account email if logged in
+  // Get email from user account
   let email = '';
   try {
     const u = localStorage.getItem('ge_user');
-    email = u ? JSON.parse(u).email : (document.getElementById('emailInput')?.value || '');
-  } catch(_) { email = document.getElementById('emailInput')?.value || ''; }
+    if (u) email = JSON.parse(u).email || '';
+  } catch(_) {}
 
   localStorage.removeItem('ge_results');
   localStorage.setItem('ge_origin',   origin);
@@ -1183,16 +1171,7 @@ function requireLogin(e) {
 // ── CHIP HELPERS ──
 // ── EMAIL BLOCK ──
 function updateEmailBlock() {
-  const user = localStorage.getItem('ge_user');
-  const block = document.getElementById('emailBlock');
-  const emailInput = document.getElementById('emailInput');
-  if (user && emailInput) {
-    try {
-      const u = JSON.parse(user);
-      emailInput.value = u.email || '';
-      if (block) block.style.display = 'none'; // hide entire block if logged in
-    } catch(_) {}
-  }
+  // Email block removed — email retrieved from user account
 }
 
 // ── RESTORE FORM ──
