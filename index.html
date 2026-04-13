@@ -224,6 +224,7 @@ footer{padding:32px 24px 24px;}.footer-main{flex-direction:column;gap:12px;text-
 .section-header{flex-direction:column;align-items:flex-start;gap:16px;}.section-subtitle{text-align:left;max-width:100%;}
 .hero-stats{gap:24px;flex-wrap:wrap;}.nav-auth .btn-login{display:none;}}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="lang-en">
 
@@ -734,14 +735,9 @@ footer{padding:32px 24px 24px;}.footer-main{flex-direction:column;gap:12px;text-
 // Supabase
 const SUPABASE_URL  = 'https://kvglstfhmdasjveiagub.supabase.co';
 const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt2Z2xzdGZobWRhc2p2ZWlhZ3ViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3ODU0NjIsImV4cCI6MjA5MTM2MTQ2Mn0.046eonW9DPSN7uUWxfImMoaBq1wRbaJ2zyeWQiyiwvU';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-async function sbFetch(path, opts={}) {
-  const r = await fetch(SUPABASE_URL + path, {
-    ...opts,
-    headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json', ...(opts.headers||{}) }
-  });
-  return r.json();
-}
+
 
 // HEADER
 function setHeaderHeight(){const n=document.getElementById('navbar'),t=document.getElementById('trustbar');if(n&&t){const h=n.offsetHeight;t.style.top=h+'px';document.getElementById('hero').style.paddingTop=(h+t.offsetHeight)+'px';}}
@@ -882,64 +878,51 @@ document.getElementById('authModal').addEventListener('click', function(e) {
 });
 
 async function signInGoogle() {
-  // Placeholder — connect Supabase Auth Google OAuth here
-  alert('Google sign-in coming soon! Please use email for now.');
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.origin }
+  });
+  if (error) alert(error.message);
 }
 
 async function signInEmail() {
-  const email = document.getElementById('loginEmail').value;
+  const email    = document.getElementById('loginEmail').value;
   const password = document.getElementById('loginPassword').value;
-  const errEl = document.getElementById('loginError');
-  const btn = document.getElementById('loginBtn');
+  const errEl    = document.getElementById('loginError');
+  const btn      = document.getElementById('loginBtn');
   errEl.classList.remove('show');
   if (!email || !password) { errEl.textContent = 'Please enter your email and password.'; errEl.classList.add('show'); return; }
-  btn.disabled = true;
-  btn.textContent = 'Signing in…';
-  try {
-    const res = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
-      method: 'POST',
-      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    const data = await res.json();
-    if (data.error || data.error_description) throw new Error(data.error_description || data.error);
-    localStorage.setItem('ge_token', data.access_token);
-    localStorage.setItem('ge_user', JSON.stringify({ email, id: data.user?.id }));
-    closeModal();
-    updateAuthUI(email);
-  } catch(err) {
-    errEl.textContent = err.message || 'Sign in failed. Please check your credentials.';
-    errEl.classList.add('show');
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) {
+    errEl.textContent = error.message; errEl.classList.add('show');
+  } else {
+    localStorage.setItem('ge_user', JSON.stringify({ email, id: data.user.id }));
+    closeModal(); updateAuthUI(email);
   }
   btn.disabled = false;
   btn.innerHTML = '<span class="en">Sign In</span><span class="zh">登录</span>';
 }
 
 async function signUpEmail() {
-  const name = document.getElementById('signupName').value;
-  const email = document.getElementById('signupEmail').value;
+  const name     = document.getElementById('signupName').value;
+  const email    = document.getElementById('signupEmail').value;
   const password = document.getElementById('signupPassword').value;
-  const errEl = document.getElementById('signupError');
-  const sucEl = document.getElementById('signupSuccess');
-  const btn = document.getElementById('signupBtn');
+  const errEl    = document.getElementById('signupError');
+  const sucEl    = document.getElementById('signupSuccess');
+  const btn      = document.getElementById('signupBtn');
   errEl.classList.remove('show'); sucEl.classList.remove('show');
   if (!email || !password) { errEl.textContent = 'Please fill in all fields.'; errEl.classList.add('show'); return; }
   if (password.length < 8) { errEl.textContent = 'Password must be at least 8 characters.'; errEl.classList.add('show'); return; }
-  btn.disabled = true;
-  btn.textContent = 'Creating account…';
-  try {
-    const res = await fetch(SUPABASE_URL + '/auth/v1/signup', {
-      method: 'POST',
-      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, data: { full_name: name } })
-    });
-    const data = await res.json();
-    if (data.error) throw new Error(data.msg || data.error);
-    sucEl.textContent = 'Account created! Please check your email to confirm your account.';
-    sucEl.classList.add('show');
-  } catch(err) {
-    errEl.textContent = err.message || 'Sign up failed. Please try again.';
-    errEl.classList.add('show');
+  btn.disabled = true; btn.textContent = 'Creating account…';
+  const { data, error } = await sb.auth.signUp({
+    email, password, options: { data: { full_name: name } }
+  });
+  if (error) {
+    errEl.textContent = error.message; errEl.classList.add('show');
+  } else {
+    localStorage.setItem('ge_user', JSON.stringify({ email, id: data.user?.id }));
+    closeModal(); updateAuthUI(email);
   }
   btn.disabled = false;
   btn.innerHTML = '<span class="en">Create Account</span><span class="zh">创建账号</span>';
@@ -956,8 +939,8 @@ function updateAuthUI(email) {
     </div>`;
 }
 
-function signOut() {
-  localStorage.removeItem('ge_token');
+async function signOut() {
+  await sb.auth.signOut();
   localStorage.removeItem('ge_user');
   location.reload();
 }
