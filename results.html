@@ -6,6 +6,7 @@
 <title>Global Explore — Your Itinerary</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 :root{--ink:#0f1117;--paper:#f8f5ef;--gold:#c9a84c;--gold-light:#e8d5a3;--mist:#e8e4dc;--text-secondary:#6b6560;--white:#ffffff;}
@@ -159,6 +160,27 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);}
 .summary-grid{grid-template-columns:1fr;gap:20px;}.main{grid-template-columns:1fr;padding:24px;}
 .sidebar{position:static;}.food-grid{grid-template-columns:1fr;}
 .flight-best{flex-direction:column;align-items:flex-start;}}
+
+/* HISTORY PANEL */
+.history-panel{position:fixed;right:0;top:0;bottom:0;width:320px;background:var(--ink);border-left:1px solid rgba(201,168,76,0.2);z-index:200;transform:translateX(100%);transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);display:flex;flex-direction:column;}
+.history-panel.open{transform:translateX(0);}
+.history-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:199;opacity:0;pointer-events:none;transition:opacity 0.3s;}
+.history-overlay.open{opacity:1;pointer-events:all;}
+.history-header{padding:24px 20px 16px;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.history-title{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:300;color:var(--white);}
+.history-close{width:32px;height:32px;border:none;background:transparent;color:rgba(255,255,255,0.4);cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:all 0.2s;}
+.history-close:hover{background:rgba(255,255,255,0.08);color:var(--white);}
+.history-list{flex:1;overflow-y:auto;padding:12px;}
+.history-item{padding:14px 16px;border:1px solid rgba(255,255,255,0.08);border-radius:4px;margin-bottom:8px;cursor:pointer;transition:all 0.2s;}
+.history-item:hover{border-color:rgba(201,168,76,0.4);background:rgba(201,168,76,0.05);}
+.history-item-dest{font-size:14px;font-weight:500;color:var(--white);margin-bottom:4px;}
+.history-item-meta{font-size:11px;color:rgba(255,255,255,0.35);display:flex;gap:8px;}
+.history-item-curr{font-size:11px;color:var(--gold);}
+.history-empty{text-align:center;padding:40px 20px;color:rgba(255,255,255,0.3);font-size:13px;line-height:1.7;}
+.history-loading{text-align:center;padding:32px;color:rgba(255,255,255,0.4);font-size:13px;}
+.user-avatar{width:34px;height:34px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;border:none;transition:all 0.2s;flex-shrink:0;}
+.user-avatar:hover{background:var(--gold-light);}
+
 </style>
 </head>
 <body class="lang-en">
@@ -191,6 +213,23 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);}
   <span id="toastMsg"></span>
 </div>
 
+
+<!-- HISTORY OVERLAY -->
+<div class="history-overlay" id="historyOverlay" onclick="closeHistory()"></div>
+
+<!-- HISTORY PANEL -->
+<div class="history-panel" id="historyPanel">
+  <div class="history-header">
+    <div class="history-title en">My Trips</div>
+    <div class="history-title zh">我的行程</div>
+    <button class="history-close" onclick="closeHistory()">×</button>
+  </div>
+  <div class="history-list" id="historyList">
+    <div class="history-loading en">Loading your trips…</div>
+    <div class="history-loading zh">正在加载行程…</div>
+  </div>
+</div>
+
 <script>
 const params = new URLSearchParams(window.location.search);
 const lang = params.get('lang') || localStorage.getItem('ge_lang') || 'en';
@@ -221,6 +260,7 @@ function init() {
     itinerary = data.itinerary;
     flights   = data.flights;
     render();
+    saveItinerary();
   } catch(e) { showError(); }
 }
 
@@ -689,7 +729,134 @@ async function downloadPDF(){
   btn.innerHTML=lang==='zh'?'<span class="zh">下载PDF</span>':'<span class="en">Download PDF</span>';
 }
 
-window.addEventListener('load', init);
+
+// SUPABASE
+const SUPABASE_URL = 'https://kvglstfhmdasjveiagub.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt2Z2xzdGZobWRhc2p2ZWlhZ3ViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3ODU0NjIsImV4cCI6MjA5MTM2MTQ2Mn0.046eonW9DPSN7uUWxfImMoaBq1wRbaJ2zyeWQiyiwvU';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// NAV — show user avatar if logged in
+function initNav() {
+  const userRaw = localStorage.getItem('ge_user');
+  if (!userRaw) return;
+  try {
+    const user = JSON.parse(userRaw);
+    const nav = document.querySelector('.nav-actions');
+    if (!nav) return;
+    const initial = user.email ? user.email[0].toUpperCase() : '?';
+    // Add avatar button before existing buttons
+    const avatarBtn = document.createElement('button');
+    avatarBtn.className = 'user-avatar';
+    avatarBtn.title = user.email;
+    avatarBtn.textContent = initial;
+    avatarBtn.onclick = openHistory;
+    nav.insertBefore(avatarBtn, nav.firstChild);
+  } catch(_) {}
+}
+
+// SAVE itinerary to Supabase
+async function saveItinerary() {
+  const userRaw = localStorage.getItem('ge_user');
+  if (!userRaw) return; // not logged in, skip
+  try {
+    const user = JSON.parse(userRaw);
+    const { error } = await sb.from('itineraries').insert({
+      user_id:     user.id,
+      origin:      localStorage.getItem('ge_origin') || '',
+      destination: localStorage.getItem('ge_dest')   || '',
+      date_from:   localStorage.getItem('ge_dateFrom') || '',
+      date_to:     localStorage.getItem('ge_dateTo')   || '',
+      currency:    localStorage.getItem('ge_currency') || 'AUD',
+      data:        JSON.parse(localStorage.getItem('ge_results') || '{}')
+    });
+    if (error) console.error('Save error:', error.message);
+    else console.log('Itinerary saved');
+  } catch(e) { console.error('Save failed:', e); }
+}
+
+// HISTORY PANEL
+function openHistory() {
+  document.getElementById('historyPanel').classList.add('open');
+  document.getElementById('historyOverlay').classList.add('open');
+  loadHistory();
+}
+function closeHistory() {
+  document.getElementById('historyPanel').classList.remove('open');
+  document.getElementById('historyOverlay').classList.remove('open');
+}
+
+async function loadHistory() {
+  const listEl = document.getElementById('historyList');
+  const isZh = lang === 'zh';
+  const userRaw = localStorage.getItem('ge_user');
+  if (!userRaw) {
+    listEl.innerHTML = `<div class="history-empty"><span class="en">Sign in to see your saved trips</span><span class="zh">登录后查看已保存的行程</span></div>`;
+    return;
+  }
+  listEl.innerHTML = `<div class="history-loading"><span class="en">Loading…</span><span class="zh">加载中…</span></div>`;
+  try {
+    const { data, error } = await sb
+      .from('itineraries')
+      .select('id,origin,destination,date_from,date_to,currency,created_at,data')
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      listEl.innerHTML = `<div class="history-empty en">No saved trips yet.<br>Generate your first itinerary to get started.</div><div class="history-empty zh">还没有保存的行程。<br>生成你的第一个行程方案吧。</div>`;
+      return;
+    }
+
+    listEl.innerHTML = data.map(item => {
+      const d = new Date(item.created_at);
+      const dateStr = d.toLocaleDateString('en', {day:'numeric',month:'short',year:'numeric'});
+      const sym = {'AUD':'A$','USD':'$','GBP':'£','EUR':'€','CNY':'¥','SGD':'S$','JPY':'¥','HKD':'HK$','CAD':'C$','NZD':'NZ$'}[item.currency] || item.currency;
+      const total = item.data?.itinerary?.budgetBreakdown?.total;
+      const budget = total ? sym + Number(total).toLocaleString() : '';
+      return `
+        <div class="history-item" onclick="loadTrip('${item.id}')">
+          <div class="history-item-dest">${item.origin} → ${item.destination}</div>
+          <div class="history-item-meta">
+            <span>${item.date_from ? item.date_from.slice(0,7) : dateStr}</span>
+            ${budget ? `<span class="history-item-curr">${budget}</span>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+  } catch(e) {
+    listEl.innerHTML = `<div class="history-empty">Failed to load trips. Please try again.</div>`;
+  }
+}
+
+async function loadTrip(id) {
+  try {
+    const { data, error } = await sb
+      .from('itineraries')
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (error) throw error;
+
+    // Restore trip data
+    localStorage.setItem('ge_results',  JSON.stringify(data.data));
+    localStorage.setItem('ge_origin',   data.origin);
+    localStorage.setItem('ge_dest',     data.destination);
+    localStorage.setItem('ge_dateFrom', data.date_from);
+    localStorage.setItem('ge_dateTo',   data.date_to);
+    localStorage.setItem('ge_currency', data.currency);
+
+    closeHistory();
+    // Re-init the page with loaded data
+    itinerary = data.data.itinerary;
+    flights   = data.data.flights;
+    render();
+    window.scrollTo(0, 0);
+  } catch(e) {
+    showToast('Failed to load trip');
+  }
+}
+
+
+window.addEventListener('load', () => { init(); initNav(); });
 </script>
 </body>
 </html>
