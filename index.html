@@ -771,8 +771,19 @@ function setLang(l) {
   document.body.className = 'lang-' + l;
   document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
   document.querySelector(`.lang-btn[onclick="setLang('${l}')"]`).classList.add('active');
-  document.querySelectorAll('[placeholder-en]').forEach(el => { el.placeholder = l==='zh' ? el.getAttribute('placeholder-zh') : el.getAttribute('placeholder-en'); });
-  document.querySelectorAll('select option[data-en]').forEach(o => { o.textContent = l==='zh' ? o.getAttribute('data-zh') : o.getAttribute('data-en'); });
+  // Update all placeholders
+  document.querySelectorAll('[placeholder-en]').forEach(el => {
+    el.placeholder = l==='zh' ? el.getAttribute('placeholder-zh') : el.getAttribute('placeholder-en');
+  });
+  // Update all select options
+  document.querySelectorAll('select option[data-en]').forEach(o => {
+    o.textContent = l==='zh' ? o.getAttribute('data-zh') : o.getAttribute('data-en');
+  });
+  // Update anchor items language visibility
+  document.querySelectorAll('.anchor-item').forEach(item => {
+    item.querySelectorAll('.en').forEach(el => { el.style.display = l==='zh' ? 'none' : ''; });
+    item.querySelectorAll('.zh').forEach(el => { el.style.display = l==='zh' ? '' : 'none'; });
+  });
   setHeaderHeight();
 }
 
@@ -946,6 +957,30 @@ async function signOut() {
 }
 
 // FORM SUBMIT
+function getChipVal(group) {
+  const isZhNow = document.body.classList.contains('lang-zh');
+  const chip = document.querySelector(`.chip[onclick*="${group}"].selected`);
+  if (!chip) return '';
+  const span = chip.querySelector(isZhNow ? '.zh' : '.en');
+  return span ? span.textContent.trim() : chip.children[0]?.textContent.trim() || chip.textContent.trim();
+}
+
+function getTravelStyle() {
+  const isZhNow = document.body.classList.contains('lang-zh');
+  // Only collect from the travel style chip grid — exclude all single-select groups
+  const excluded = ['nearby','flightStatus','flightPref','purpose','pace','crowd','transport'];
+  return Array.from(document.querySelectorAll('.chip.selected'))
+    .filter(c => {
+      const onclick = c.getAttribute('onclick') || '';
+      return !excluded.some(g => onclick.includes(g));
+    })
+    .map(c => {
+      const span = c.querySelector(isZhNow ? '.zh' : '.en');
+      return span ? span.textContent.trim() : c.children[0]?.textContent.trim() || '';
+    })
+    .filter(Boolean);
+}
+
 function handleSubmit(e) {
   e.preventDefault();
   const isZh = document.body.classList.contains('lang-zh');
@@ -963,7 +998,7 @@ function handleSubmit(e) {
   localStorage.setItem('ge_currency', currentCurrency);
   localStorage.setItem('ge_lang',     isZh ? 'zh' : 'en');
 
-  const travelStyle = Array.from(document.querySelectorAll('.chip.selected')).map(c => c.textContent.trim()).filter(Boolean);
+  const travelStyle = getTravelStyle();
   const formData = {
     origin, destination: dest, departDate: dateFrom, returnDate: dateTo,
     adults: counts.adults, children: counts.children, infants: counts.infants, seniors: counts.seniors,
@@ -972,20 +1007,21 @@ function handleSubmit(e) {
     currency: currentCurrency,
     budget:             document.getElementById('budgetSelect')?.value || '',
     travelClass:        document.getElementById('classSelect')?.value || 'Economy',
-    flightPreference:   document.querySelector('.chip[onclick*="flightPref"].selected')?.textContent.trim() || '',
+    flightPreference:   getChipVal('flightPref'),
     accommodationLevel: document.getElementById('accomLevelSelect')?.value || '',
     accommodationType:  document.getElementById('accomTypeSelect')?.value  || '',
     accommodationLocation: document.getElementById('accomLocSelect')?.value || '',
     travelStyle,
-    pace:            document.querySelector('.chip[onclick*="pace"].selected')?.textContent.trim()      || '',
-    purpose:         document.querySelector('.chip[onclick*="purpose"].selected')?.textContent.trim()   || '',
+    pace:            getChipVal('pace'),
+    purpose:         getChipVal('purpose'),
     dietary:         document.getElementById('dietSelect')?.value          || '',
     hasVisited:      document.getElementById('visitedSelect')?.value       || '',
-    localTransport:  document.querySelector('.chip[onclick*="transport"].selected')?.textContent.trim() || '',
-    crowdPreference: document.querySelector('.chip[onclick*="crowd"].selected')?.textContent.trim()     || '',
+    localTransport:  getChipVal('transport'),
+    crowdPreference: getChipVal('crowd'),
     shoppingFocus:   document.getElementById('shoppingFocusSelect')?.value || '',
-    nearbyCity:      document.querySelector('.chip[onclick*="nearby"].selected')?.textContent.trim()    || 'No',
+    nearbyCity:      getChipVal('nearby') || 'No',
     specialRequests: document.getElementById('specialRequests')?.value     || '',
+    email: document.getElementById('emailInput')?.value || '',
     anchors: getAnchors()
   };
 
@@ -1009,11 +1045,98 @@ function getAnchors() {
 }
 
 // INIT
+
+// RESTORE FORM from previous submission
+function restoreForm() {
+  try {
+    const raw = localStorage.getItem('ge_formData');
+    if (!raw) return;
+    const d = JSON.parse(raw);
+
+    // Cities
+    if (d.origin)      document.getElementById('originInput').value = d.origin;
+    if (d.destination) document.getElementById('destInput').value   = d.destination;
+
+    // Dates
+    if (d.departDate) {
+      const el = document.getElementById('departDate');
+      if (el) el.value = d.departDate;
+    }
+    if (d.returnDate) {
+      const el = document.getElementById('returnDate');
+      if (el) el.value = d.returnDate;
+    }
+
+    // Travellers
+    if (d.adults   > 0) { counts.adults   = d.adults;   document.getElementById('adults').textContent   = d.adults; }
+    if (d.children > 0) { counts.children = d.children; document.getElementById('children').textContent = d.children; document.getElementById('childAgesRow').style.display='block'; }
+    if (d.infants  > 0) { counts.infants  = d.infants;  document.getElementById('infants').textContent  = d.infants;  document.getElementById('infantNeeds').style.display='block'; }
+    if (d.seniors  > 0) { counts.seniors  = d.seniors;  document.getElementById('seniors').textContent  = d.seniors;  document.getElementById('seniorAgesRow').style.display='block'; }
+    if (d.childAges)  { const el = document.getElementById('childAges');  if(el) el.value = d.childAges; }
+    if (d.seniorAges) { const el = document.getElementById('seniorAges'); if(el) el.value = d.seniorAges; }
+
+    // Selects
+    const selects = {
+      'budgetSelect': d.budget,
+      'classSelect':  d.travelClass,
+      'accomLevelSelect': d.accommodationLevel,
+      'accomTypeSelect':  d.accommodationType,
+      'accomLocSelect':   d.accommodationLocation,
+      'visitedSelect':    d.hasVisited,
+      'dietSelect':       d.dietary,
+      'shoppingFocusSelect': d.shoppingFocus,
+    };
+    Object.entries(selects).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (el && val) el.value = val;
+    });
+
+    // Currency
+    if (d.currency) setCurrency(d.currency);
+
+    // Email
+    if (d.email) { const el = document.getElementById('emailInput'); if(el) el.value = d.email; }
+
+    // Special requests
+    if (d.specialRequests) { const el = document.getElementById('specialRequests'); if(el) el.value = d.specialRequests; }
+
+    // Restore anchors
+    if (d.anchors && d.anchors.length > 0) {
+      d.anchors.forEach(a => {
+        addAnchor();
+        const items = document.querySelectorAll('.anchor-item');
+        const item  = items[items.length - 1];
+        if (!item) return;
+        const texts = item.querySelectorAll('input[type="text"]');
+        const dateEl = item.querySelector('input[type="date"]');
+        const numEl  = item.querySelector('input[type="number"]');
+        if (texts[0] && a.city)   texts[0].value = a.city;
+        if (dateEl   && a.date)   dateEl.value   = a.date;
+        if (numEl    && a.nights) numEl.value    = a.nights;
+        if (texts[1] && a.notes)  texts[1].value = a.notes;
+        // Restore type chips
+        if (a.type) {
+          const types = a.type.split(', ');
+          item.querySelectorAll('.anchor-type-chip').forEach(chip => {
+            const en = chip.querySelector('.en')?.textContent.trim() || '';
+            const zh = chip.querySelector('.zh')?.textContent.trim() || '';
+            if (types.some(t => t.includes(en) || t.includes(zh))) {
+              chip.classList.add('selected');
+            }
+          });
+        }
+      });
+    }
+
+  } catch(e) { console.log('Restore skipped:', e.message); }
+}
+
 window.addEventListener('load', () => {
   detectCurrency();
   setHeaderHeight();
   const user = localStorage.getItem('ge_user');
   if (user) { try { updateAuthUI(JSON.parse(user).email); } catch(_){} }
+  restoreForm();
 });
 </script>
 </body>
