@@ -223,6 +223,12 @@ footer{padding:32px 24px 24px;}.footer-main{flex-direction:column;gap:12px;text-
 .form-row,.anchor-row{grid-template-columns:1fr;}.chip-grid-3{grid-template-columns:repeat(2,1fr);}
 .section-header{flex-direction:column;align-items:flex-start;gap:16px;}.section-subtitle{text-align:left;max-width:100%;}
 .hero-stats{gap:24px;flex-wrap:wrap;}.nav-auth .btn-login{display:none;}}
+
+/* VALIDATION */
+.field-error{font-size:11px;color:#e05555;margin-top:5px;display:none;letter-spacing:0.02em;}
+.field-error.show{display:block;}
+.field input.input-error,.field input[type="date"].input-error{border-color:#e05555 !important;}
+.field input.input-error:focus,.field input[type="date"].input-error:focus{border-color:#e05555 !important;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -407,7 +413,7 @@ footer{padding:32px 24px 24px;}.footer-main{flex-direction:column;gap:12px;text-
       </div>
     </div>
 
-    <form class="plan-form" onsubmit="handleSubmit(event)">
+    <form class="plan-form" onsubmit="handleSubmit(event)" onclick="requireLogin(event)">
       <!-- BLOCK 1: DESTINATION -->
       <div class="form-block">
         <div class="block-title en">Departure &amp; Destination</div><div class="block-title zh">出发与目的地</div>
@@ -416,6 +422,7 @@ footer{padding:32px 24px 24px;}.footer-main{flex-direction:column;gap:12px;text-
             <label><span class="en">Departing From</span><span class="zh">出发城市</span></label>
             <div class="autocomplete-wrapper">
               <input type="text" id="originInput" autocomplete="off" placeholder-en="e.g. London, New York, Sydney…" placeholder-zh="例如：伦敦、纽约、悉尼…" placeholder="e.g. London, New York, Sydney…" oninput="handleCityInput(this,'originDropdown')" onkeydown="handleKeydown(event,'originDropdown')" onblur="closeDropdown('originDropdown',300)" required>
+              <span class="field-error" id="originError"></span>
               <div class="autocomplete-dropdown" id="originDropdown"></div>
             </div>
           </div>
@@ -426,6 +433,7 @@ footer{padding:32px 24px 24px;}.footer-main{flex-direction:column;gap:12px;text-
             </label>
             <div class="autocomplete-wrapper">
               <input type="text" id="destInput" autocomplete="off" placeholder-en="e.g. Tokyo, Paris, Bali — or — Help me choose" placeholder-zh="例如：东京、巴黎、巴厘岛，或写"帮我推荐"" placeholder="e.g. Tokyo, Paris, Bali — or — Help me choose" oninput="handleCityInput(this,'destDropdown')" onkeydown="handleKeydown(event,'destDropdown')" onblur="closeDropdown('destDropdown',300)" required>
+              <span class="field-error" id="destError"></span>
               <div class="autocomplete-dropdown" id="destDropdown"></div>
             </div>
           </div>
@@ -436,11 +444,13 @@ footer{padding:32px 24px 24px;}.footer-main{flex-direction:column;gap:12px;text-
               <span class="label-note en">We search 30 days around this date for the best fare</span>
               <span class="label-note zh">我们将在此日期前后30天内搜索最优票价</span>
             </label>
-            <input type="date" id="departDate" required>
+            <input type="date" id="departDate" onchange="onDepartChange()" required>
+              <span class="field-error" id="departError"></span>
           </div>
           <div class="field">
             <label><span class="en">Return Date</span><span class="zh">返回日期</span></label>
-            <input type="date" id="returnDate" required>
+            <input type="date" id="returnDate" onchange="onReturnChange()" required>
+              <span class="field-error" id="returnError"></span>
           </div>
         </div>
         <div class="field">
@@ -558,7 +568,7 @@ footer{padding:32px 24px 24px;}.footer-main{flex-direction:column;gap:12px;text-
         <div class="form-row">
           <div class="field">
             <label><span class="en">Accommodation Level</span><span class="zh">住宿档次</span></label>
-            <select required id="accomLevelSelect">
+            <select required id="accomLevelSelect" onchange="clearError('accomLevelSelect','accomError')">
               <option value="" data-en="Select level" data-zh="请选择">Select level</option>
               <option value="Budget" data-en="Budget (1–2 star)" data-zh="经济型（1-2星）">Budget (1–2 star)</option>
               <option value="Comfort" data-en="Comfort (3 star)" data-zh="舒适型（3星）">Comfort (3 star)</option>
@@ -684,14 +694,16 @@ footer{padding:32px 24px 24px;}.footer-main{flex-direction:column;gap:12px;text-
       </div>
 
       <!-- BLOCK 9: EMAIL -->
-      <div class="form-block">
-        <div class="block-title en">Receive Your Plan</div><div class="block-title zh">接收行程方案</div>
+      <div class="form-block" id="emailBlock">
+        <div id="emailBlock" class="form-block" style="display:none;padding:0;border:none;"></div>
+      <div class="form-block" id="emailBlockVisible">
+      <div class="block-title en">Receive Your Plan</div><div class="block-title zh">接收行程方案</div>
         <div class="field">
           <label><span class="en">Your Email Address</span><span class="zh">电子邮箱</span>
             <span class="label-note en">Your complete itinerary will be sent here</span>
             <span class="label-note zh">完整行程方案将发送至此邮箱</span>
           </label>
-          <input type="email" id="emailInput" placeholder="your@email.com" required>
+          <input type="email" id="emailInput" placeholder="your@email.com">
         </div>
       </div>
 
@@ -983,11 +995,20 @@ function getTravelStyle() {
 
 function handleSubmit(e) {
   e.preventDefault();
+  if (!validateForm()) return;
+
   const isZh = document.body.classList.contains('lang-zh');
   const origin   = document.getElementById('originInput').value || '';
   const dest     = document.getElementById('destInput').value || '';
   const dateFrom = document.getElementById('departDate').value || '';
   const dateTo   = document.getElementById('returnDate').value || '';
+
+  // Use account email if logged in
+  let email = '';
+  try {
+    const u = localStorage.getItem('ge_user');
+    email = u ? JSON.parse(u).email : (document.getElementById('emailInput')?.value || '');
+  } catch(_) { email = document.getElementById('emailInput')?.value || ''; }
 
   localStorage.removeItem('ge_results');
   localStorage.setItem('ge_origin',   origin);
@@ -998,30 +1019,30 @@ function handleSubmit(e) {
   localStorage.setItem('ge_currency', currentCurrency);
   localStorage.setItem('ge_lang',     isZh ? 'zh' : 'en');
 
-  const travelStyle = getTravelStyle();
   const formData = {
     origin, destination: dest, departDate: dateFrom, returnDate: dateTo,
-    adults: counts.adults, children: counts.children, infants: counts.infants, seniors: counts.seniors,
+    adults: counts.adults, children: counts.children,
+    infants: counts.infants, seniors: counts.seniors,
     childAges:  document.getElementById('childAges')?.value  || '',
     seniorAges: document.getElementById('seniorAges')?.value || '',
     currency: currentCurrency,
-    budget:             document.getElementById('budgetSelect')?.value || '',
-    travelClass:        document.getElementById('classSelect')?.value || 'Economy',
-    flightPreference:   getChipVal('flightPref'),
-    accommodationLevel: document.getElementById('accomLevelSelect')?.value || '',
-    accommodationType:  document.getElementById('accomTypeSelect')?.value  || '',
-    accommodationLocation: document.getElementById('accomLocSelect')?.value || '',
-    travelStyle,
+    budget:                document.getElementById('budgetSelect')?.value || '',
+    travelClass:           document.getElementById('classSelect')?.value  || 'Economy',
+    flightPreference:      getChipVal('flightPref'),
+    accommodationLevel:    document.getElementById('accomLevelSelect')?.value || '',
+    accommodationType:     document.getElementById('accomTypeSelect')?.value  || '',
+    accommodationLocation: document.getElementById('accomLocSelect')?.value   || '',
+    travelStyle:           getTravelStyle(),
     pace:            getChipVal('pace'),
     purpose:         getChipVal('purpose'),
-    dietary:         document.getElementById('dietSelect')?.value          || '',
-    hasVisited:      document.getElementById('visitedSelect')?.value       || '',
+    dietary:         document.getElementById('dietSelect')?.value           || '',
+    hasVisited:      document.getElementById('visitedSelect')?.value        || '',
     localTransport:  getChipVal('transport'),
     crowdPreference: getChipVal('crowd'),
-    shoppingFocus:   document.getElementById('shoppingFocusSelect')?.value || '',
+    shoppingFocus:   document.getElementById('shoppingFocusSelect')?.value  || '',
     nearbyCity:      getChipVal('nearby') || 'No',
-    specialRequests: document.getElementById('specialRequests')?.value     || '',
-    email: document.getElementById('emailInput')?.value || '',
+    specialRequests: document.getElementById('specialRequests')?.value      || '',
+    email,
     anchors: getAnchors()
   };
 
@@ -1047,87 +1068,181 @@ function getAnchors() {
 // INIT
 
 // RESTORE FORM from previous submission
+function onDepartChange() {
+  const depEl = document.getElementById('departDate');
+  const retEl = document.getElementById('returnDate');
+  if (!depEl.value) return;
+
+  const depDate = new Date(depEl.value);
+
+  // Auto-set return to depart + 7 days
+  const retDate = new Date(depDate);
+  retDate.setDate(retDate.getDate() + 7);
+  retEl.value = retDate.toISOString().split('T')[0];
+
+  // Set min on return date
+  retEl.min = depEl.value;
+
+  // Set min on all anchor dates and default value
+  document.querySelectorAll('.anchor-field input[type="date"]').forEach(el => {
+    el.min = depEl.value;
+    if (!el.value) el.value = depEl.value;
+  });
+
+  // Clear errors
+  clearError('departDate', 'departError');
+  clearError('returnDate', 'returnError');
+}
+
+function onReturnChange() {
+  const depEl = document.getElementById('departDate');
+  const retEl = document.getElementById('returnDate');
+  if (!retEl.value || !depEl.value) return;
+  if (new Date(retEl.value) <= new Date(depEl.value)) {
+    showFieldError('returnDate', 'returnError', 'Return date must be after departure date');
+  } else {
+    clearError('returnDate', 'returnError');
+  }
+}
+
+// ── VALIDATION ──
+function showFieldError(inputId, errorId, msg) {
+  const el  = document.getElementById(inputId);
+  const err = document.getElementById(errorId);
+  if (el)  el.classList.add('input-error');
+  if (err) { err.textContent = msg; err.classList.add('show'); }
+}
+
+function clearError(inputId, errorId) {
+  const el  = document.getElementById(inputId);
+  const err = document.getElementById(errorId);
+  if (el)  el.classList.remove('input-error');
+  if (err) err.classList.remove('show');
+}
+
+function validateForm() {
+  let valid = true;
+  const isZhNow = document.body.classList.contains('lang-zh');
+
+  // Clear all errors first
+  ['departDate','returnDate','originInput','destInput'].forEach(id => {
+    document.getElementById(id)?.classList.remove('input-error');
+  });
+  ['departError','returnError','originError','destError'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('show');
+  });
+
+  const origin = document.getElementById('originInput')?.value?.trim();
+  const dest   = document.getElementById('destInput')?.value?.trim();
+  const dep    = document.getElementById('departDate')?.value;
+  const ret    = document.getElementById('returnDate')?.value;
+
+  if (!origin) {
+    showFieldError('originInput', 'originError', isZhNow ? '请填写出发城市' : 'Please enter a departure city');
+    valid = false;
+  }
+  if (!dest) {
+    showFieldError('destInput', 'destError', isZhNow ? '请填写目的地' : 'Please enter a destination');
+    valid = false;
+  }
+  if (!dep) {
+    showFieldError('departDate', 'departError', isZhNow ? '请选择出发日期' : 'Please select a departure date');
+    valid = false;
+  }
+  if (!ret) {
+    showFieldError('returnDate', 'returnError', isZhNow ? '请选择返回日期' : 'Please select a return date');
+    valid = false;
+  } else if (dep && new Date(ret) <= new Date(dep)) {
+    showFieldError('returnDate', 'returnError', isZhNow ? '返回日期必须晚于出发日期' : 'Return date must be after departure date');
+    valid = false;
+  }
+
+  if (!valid) {
+    const firstErr = document.querySelector('.input-error');
+    if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  return valid;
+}
+
+// ── REQUIRE LOGIN ──
+let formUnlocked = false;
+function requireLogin(e) {
+  if (formUnlocked) return;
+  const tag = e.target.tagName.toLowerCase();
+  const isInteractive = ['input','select','textarea','button'].includes(tag);
+  if (!isInteractive) return;
+  // Check if logged in
+  const user = localStorage.getItem('ge_user');
+  if (user) { formUnlocked = true; return; }
+  e.preventDefault();
+  e.stopPropagation();
+  openModal('login');
+}
+
+// ── CHIP HELPERS ──
+// ── EMAIL BLOCK ──
+function updateEmailBlock() {
+  const user = localStorage.getItem('ge_user');
+  const block = document.getElementById('emailBlock');
+  const emailInput = document.getElementById('emailInput');
+  if (user && emailInput) {
+    try {
+      const u = JSON.parse(user);
+      emailInput.value = u.email || '';
+      if (block) block.style.display = 'none'; // hide entire block if logged in
+    } catch(_) {}
+  }
+}
+
+// ── RESTORE FORM ──
 function restoreForm() {
   try {
     const raw = localStorage.getItem('ge_formData');
     if (!raw) return;
     const d = JSON.parse(raw);
-
-    // Cities
     if (d.origin)      document.getElementById('originInput').value = d.origin;
     if (d.destination) document.getElementById('destInput').value   = d.destination;
-
-    // Dates
-    if (d.departDate) {
-      const el = document.getElementById('departDate');
-      if (el) el.value = d.departDate;
-    }
-    if (d.returnDate) {
-      const el = document.getElementById('returnDate');
-      if (el) el.value = d.returnDate;
-    }
-
-    // Travellers
-    if (d.adults   > 0) { counts.adults   = d.adults;   document.getElementById('adults').textContent   = d.adults; }
+    if (d.departDate)  { const el = document.getElementById('departDate'); if(el) { el.value = d.departDate; el.min = ''; } }
+    if (d.returnDate)  { const el = document.getElementById('returnDate'); if(el) { el.value = d.returnDate; if(d.departDate) el.min = d.departDate; } }
+    if (d.adults   > 1) { counts.adults   = d.adults;   document.getElementById('adults').textContent   = d.adults; }
     if (d.children > 0) { counts.children = d.children; document.getElementById('children').textContent = d.children; document.getElementById('childAgesRow').style.display='block'; }
     if (d.infants  > 0) { counts.infants  = d.infants;  document.getElementById('infants').textContent  = d.infants;  document.getElementById('infantNeeds').style.display='block'; }
     if (d.seniors  > 0) { counts.seniors  = d.seniors;  document.getElementById('seniors').textContent  = d.seniors;  document.getElementById('seniorAgesRow').style.display='block'; }
-    if (d.childAges)  { const el = document.getElementById('childAges');  if(el) el.value = d.childAges; }
-    if (d.seniorAges) { const el = document.getElementById('seniorAges'); if(el) el.value = d.seniorAges; }
-
-    // Selects
-    const selects = {
-      'budgetSelect': d.budget,
-      'classSelect':  d.travelClass,
-      'accomLevelSelect': d.accommodationLevel,
-      'accomTypeSelect':  d.accommodationType,
-      'accomLocSelect':   d.accommodationLocation,
-      'visitedSelect':    d.hasVisited,
-      'dietSelect':       d.dietary,
-      'shoppingFocusSelect': d.shoppingFocus,
+    if (d.childAges)    { const el = document.getElementById('childAges');  if(el) el.value = d.childAges; }
+    if (d.seniorAges)   { const el = document.getElementById('seniorAges'); if(el) el.value = d.seniorAges; }
+    const selMap = {
+      budgetSelect: d.budget, classSelect: d.travelClass,
+      accomLevelSelect: d.accommodationLevel, accomTypeSelect: d.accommodationType,
+      accomLocSelect: d.accommodationLocation, visitedSelect: d.hasVisited,
+      dietSelect: d.dietary, shoppingFocusSelect: d.shoppingFocus,
     };
-    Object.entries(selects).forEach(([id, val]) => {
-      const el = document.getElementById(id);
-      if (el && val) el.value = val;
-    });
-
-    // Currency
+    Object.entries(selMap).forEach(([id, val]) => { const el=document.getElementById(id); if(el&&val) el.value=val; });
     if (d.currency) setCurrency(d.currency);
-
-    // Email
-    if (d.email) { const el = document.getElementById('emailInput'); if(el) el.value = d.email; }
-
-    // Special requests
-    if (d.specialRequests) { const el = document.getElementById('specialRequests'); if(el) el.value = d.specialRequests; }
-
-    // Restore anchors
+    if (d.specialRequests) { const el=document.getElementById('specialRequests'); if(el) el.value=d.specialRequests; }
     if (d.anchors && d.anchors.length > 0) {
       d.anchors.forEach(a => {
         addAnchor();
         const items = document.querySelectorAll('.anchor-item');
         const item  = items[items.length - 1];
         if (!item) return;
-        const texts = item.querySelectorAll('input[type="text"]');
+        const texts  = item.querySelectorAll('input[type="text"]');
         const dateEl = item.querySelector('input[type="date"]');
         const numEl  = item.querySelector('input[type="number"]');
         if (texts[0] && a.city)   texts[0].value = a.city;
         if (dateEl   && a.date)   dateEl.value   = a.date;
         if (numEl    && a.nights) numEl.value    = a.nights;
         if (texts[1] && a.notes)  texts[1].value = a.notes;
-        // Restore type chips
         if (a.type) {
           const types = a.type.split(', ');
           item.querySelectorAll('.anchor-type-chip').forEach(chip => {
             const en = chip.querySelector('.en')?.textContent.trim() || '';
             const zh = chip.querySelector('.zh')?.textContent.trim() || '';
-            if (types.some(t => t.includes(en) || t.includes(zh))) {
-              chip.classList.add('selected');
-            }
+            if (types.some(t => t.includes(en) || t.includes(zh))) chip.classList.add('selected');
           });
         }
       });
     }
-
   } catch(e) { console.log('Restore skipped:', e.message); }
 }
 
@@ -1135,8 +1250,14 @@ window.addEventListener('load', () => {
   detectCurrency();
   setHeaderHeight();
   const user = localStorage.getItem('ge_user');
-  if (user) { try { updateAuthUI(JSON.parse(user).email); } catch(_){} }
+  if (user) {
+    try {
+      updateAuthUI(JSON.parse(user).email);
+      formUnlocked = true;
+    } catch(_) {}
+  }
   restoreForm();
+  updateEmailBlock();
 });
 </script>
 </body>
