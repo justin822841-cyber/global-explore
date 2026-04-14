@@ -292,6 +292,7 @@ RESPOND WITH VALID JSON ONLY — no markdown, no explanation:
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 8000,
+        stream: true,
         messages: [{ role: 'user', content: prompt }]
       })
     });
@@ -301,10 +302,41 @@ RESPOND WITH VALID JSON ONLY — no markdown, no explanation:
       return res.status(500).json({ error: err.error?.message || 'Claude API error' });
     }
 
-    const data = await response.json();
-    const raw = data.content?.[0]?.text || '';
+    // Set streaming headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('Transfer-Encoding', 'chunked');
 
-    const clean = raw.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
+    // Read stream and accumulate full text
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const data = line.slice(6).trim();
+        if (data === '[DONE]') continue;
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta') {
+            fullText += parsed.delta.text || '';
+            // Send progress ping to keep connection alive
+            res.write(':\n\n');
+          }
+        } catch(_) {}
+      }
+    }
+
+    // Parse the complete JSON response
+    const clean = fullText.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
     let itinerary;
     try {
       itinerary = JSON.parse(clean);
@@ -314,9 +346,17 @@ RESPOND WITH VALID JSON ONLY — no markdown, no explanation:
       else throw new Error('Could not parse itinerary JSON');
     }
 
-    return res.status(200).json({ success: true, itinerary });
+    // Send final result as SSE event
+    res.write('event: done\n');
+    res.write('data: ' + JSON.stringify({ success: true, itinerary }) + '\n\n');
+    res.end();
 
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    if (!res.headersSent) {
+      return res.status(500).json({ error: error.message });
+    }
+    res.write('event: error\n');
+    res.write('data: ' + JSON.stringify({ error: error.message }) + '\n\n');
+    res.end();
   }
 }
