@@ -346,8 +346,7 @@ RESPOND WITH VALID JSON ONLY — no markdown, no explanation:
       else throw new Error('Could not parse itinerary JSON');
     }
 
-    // Send final result as SSE event
-    res.write('event: done\n');
+    // Send final result - simple data line for easy parsing
     res.write('data: ' + JSON.stringify({ success: true, itinerary }) + '\n\n');
     res.end();
 
@@ -355,7 +354,6 @@ RESPOND WITH VALID JSON ONLY — no markdown, no explanation:
     if (!res.headersSent) {
       return res.status(500).json({ error: error.message });
     }
-    res.write('event: error\n');
     res.write('data: ' + JSON.stringify({ error: error.message }) + '\n\n');
     res.end();
   }
