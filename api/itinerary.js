@@ -1,46 +1,59 @@
 function cleanJSON(raw) {
-  // Remove markdown code blocks
+  // Step 1: Remove markdown fences
   let text = raw
     .replace(/```json\s*/gi, '')
     .replace(/```\s*/g, '')
     .trim();
 
-  // Find the outermost { } 
+  // Step 2: Extract outermost { }
   const start = text.indexOf('{');
   const end   = text.lastIndexOf('}');
   if (start === -1 || end === -1) throw new Error('No JSON object found');
   text = text.slice(start, end + 1);
 
-  // Fix common Claude JSON issues:
-  // 1. Remove control characters (newlines inside strings)
-  // 2. Fix unescaped quotes inside string values
-  // We do a careful character-by-character scan
+  // Step 3: Fix control characters inside JSON strings
+  // Scan char by char, track string context
   let result = '';
   let inString = false;
-  let i = 0;
-
-  while (i < text.length) {
+  let escaped = false;
+  
+  for (let i = 0; i < text.length; i++) {
     const ch = text[i];
-
-    if (ch === '"' && (i === 0 || text[i-1] !== '\\')) {
+    const code = text.charCodeAt(i);
+    
+    if (escaped) {
+      escaped = false;
+      result += ch;
+      continue;
+    }
+    
+    if (ch === '\\') {
+      escaped = true;
+      result += ch;
+      continue;
+    }
+    
+    if (ch === '"') {
       inString = !inString;
       result += ch;
-    } else if (inString) {
-      // Inside a string value
-      if (ch === '\n') {
-        result += '\\n'; // escape newline
-      } else if (ch === '\r') {
-        result += '\\r'; // escape carriage return
-      } else if (ch === '\t') {
-        result += '\\t'; // escape tab
-      } else {
-        result += ch;
-      }
-    } else {
-      result += ch;
+      continue;
     }
-    i++;
+    
+    if (inString) {
+      // Replace bare control characters with their escape sequences
+      if (code === 0x0A) { result += '\\n'; continue; }  // newline
+      if (code === 0x0D) { result += '\\r'; continue; }  // carriage return
+      if (code === 0x09) { result += '\\t'; continue; }  // tab
+      if (code < 0x20)   { result += ' '; continue; }      // other control chars
+    }
+    
+    result += ch;
   }
+
+  // Step 4: Fix trailing commas before ] or }
+  result = result
+    .replace(/,\s*}/g, '}')
+    .replace(/,\s*]/g, ']');
 
   return result;
 }
@@ -218,7 +231,15 @@ QUALITY STANDARDS — every day must meet these:
    - Activities and transport costs
    All amounts in ${currency}
 
-RESPOND WITH VALID JSON ONLY — no markdown, no explanation:
+CRITICAL JSON RULES — you MUST follow these exactly:
+- Output ONLY valid JSON, no markdown, no explanation, no code fences
+- Do NOT use apostrophes (') in any string value — use (') or rewrite without them
+- Do NOT use unescaped double quotes inside string values
+- Do NOT use line breaks inside string values — write everything on one line per field
+- Do NOT add trailing commas after the last item in arrays or objects
+- Keep all string values simple and clean
+
+RESPOND WITH VALID JSON ONLY:
 
 {
   "summary": "4-5 warm specific sentences about what makes this trip special for this group",
