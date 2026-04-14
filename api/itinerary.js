@@ -308,28 +308,31 @@ RESPOND WITH VALID JSON ONLY — no markdown, no explanation:
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('Transfer-Encoding', 'chunked');
 
-    // Read stream and accumulate full text
+    // Read Claude SSE stream and accumulate full text
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let fullText = '';
+    let sseBuffer = '';
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
 
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split('\n');
+      sseBuffer += decoder.decode(value, { stream: true });
+      const lines = sseBuffer.split('\n');
+      sseBuffer = lines.pop() || ''; // keep incomplete line
 
       for (const line of lines) {
         if (!line.startsWith('data: ')) continue;
         const data = line.slice(6).trim();
-        if (data === '[DONE]') continue;
+        if (!data || data === '[DONE]') continue;
         try {
           const parsed = JSON.parse(data);
+          // Claude streaming event types
           if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta') {
             fullText += parsed.delta.text || '';
-            // Send progress ping to keep connection alive
-            res.write(':\n\n');
+          } else if (parsed.type === 'message_delta' && parsed.usage) {
+            // Message complete signal
           }
         } catch(_) {}
       }
