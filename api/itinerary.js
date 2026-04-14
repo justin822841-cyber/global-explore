@@ -1,3 +1,50 @@
+function cleanJSON(raw) {
+  // Remove markdown code blocks
+  let text = raw
+    .replace(/```json\s*/gi, '')
+    .replace(/```\s*/g, '')
+    .trim();
+
+  // Find the outermost { } 
+  const start = text.indexOf('{');
+  const end   = text.lastIndexOf('}');
+  if (start === -1 || end === -1) throw new Error('No JSON object found');
+  text = text.slice(start, end + 1);
+
+  // Fix common Claude JSON issues:
+  // 1. Remove control characters (newlines inside strings)
+  // 2. Fix unescaped quotes inside string values
+  // We do a careful character-by-character scan
+  let result = '';
+  let inString = false;
+  let i = 0;
+
+  while (i < text.length) {
+    const ch = text[i];
+
+    if (ch === '"' && (i === 0 || text[i-1] !== '\\')) {
+      inString = !inString;
+      result += ch;
+    } else if (inString) {
+      // Inside a string value
+      if (ch === '\n') {
+        result += '\\n'; // escape newline
+      } else if (ch === '\r') {
+        result += '\\r'; // escape carriage return
+      } else if (ch === '\t') {
+        result += '\\t'; // escape tab
+      } else {
+        result += ch;
+      }
+    } else {
+      result += ch;
+    }
+    i++;
+  }
+
+  return result;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -339,14 +386,16 @@ RESPOND WITH VALID JSON ONLY — no markdown, no explanation:
     }
 
     // Parse the complete JSON response
-    const clean = fullText.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
     let itinerary;
     try {
+      const clean = cleanJSON(fullText);
       itinerary = JSON.parse(clean);
-    } catch (_) {
-      const match = clean.match(/\{[\s\S]*\}/);
-      if (match) itinerary = JSON.parse(match[0]);
-      else throw new Error('Could not parse itinerary JSON');
+    } catch (parseErr) {
+      // Log what we got for debugging
+      console.error('JSON parse error:', parseErr.message);
+      console.error('fullText length:', fullText.length);
+      console.error('fullText end:', fullText.slice(-200));
+      throw new Error('Could not parse itinerary: ' + parseErr.message);
     }
 
     // Send final result - simple data line for easy parsing
