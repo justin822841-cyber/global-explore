@@ -58,6 +58,69 @@ function cleanJSON(raw) {
   return result;
 }
 
+function aggressiveJSONRepair(raw) {
+  // Remove markdown
+  let text = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+  
+  // Find JSON boundaries
+  const start = text.indexOf('{');
+  if (start === -1) throw new Error('No JSON found');
+  text = text.slice(start);
+  
+  // Strategy: truncate at the last valid complete top-level key
+  // Find the last successfully parseable portion by trying shorter versions
+  
+  // First try: fix control chars and trailing commas
+  let fixed = '';
+  let inStr = false;
+  let esc = false;
+  
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    const code = text.charCodeAt(i);
+    
+    if (esc) { esc = false; fixed += ch; continue; }
+    if (ch === '\\') { esc = true; fixed += ch; continue; }
+    if (ch === '"') { inStr = !inStr; fixed += ch; continue; }
+    
+    if (inStr) {
+      if (code === 0x0A || code === 0x0D) { fixed += ' '; continue; }
+      if (code < 0x20) { fixed += ' '; continue; }
+      // Fix unescaped apostrophe-like chars that might break parsing
+    }
+    fixed += ch;
+  }
+  
+  // Fix trailing commas
+  fixed = fixed
+    .replace(/,\s*([}\]])/g, '$1')
+    .replace(/([{\[,])\s*,/g, '$1');
+  
+  // Try to find the last complete closing brace
+  // Walk backwards to find a parseable subset
+  for (let len = fixed.length; len > 100; len = Math.floor(len * 0.95)) {
+    let attempt = fixed.slice(0, len);
+    // Close any open structures
+    const opens = (attempt.match(/[{[]/g) || []).length;
+    const closes = (attempt.match(/[}\]]/g) || []).length;
+    const diff = opens - closes;
+    if (diff > 0) {
+      // Add closing braces/brackets
+      for (let d = 0; d < diff; d++) {
+        attempt += '}';
+      }
+    }
+    // Remove trailing comma before added closing braces
+    attempt = attempt.replace(/,\s*([}\]])/g, '$1');
+    try {
+      return JSON.parse(attempt);
+    } catch(_) {}
+  }
+  
+  throw new Error('Could not repair JSON');
+}
+
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -359,7 +422,7 @@ RESPOND WITH VALID JSON ONLY:
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 8000,
+        max_tokens: 5000,
         stream: true,
         messages: [{ role: 'user', content: prompt }]
       })
@@ -409,14 +472,24 @@ RESPOND WITH VALID JSON ONLY:
     // Parse the complete JSON response
     let itinerary;
     try {
-      const clean = cleanJSON(fullText);
+      // Pre-process: remove any BOM or invisible chars
+      const sanitized = fullText
+        .replace(/\uFEFF/g, '')           // BOM
+        .replace(/\u2018|\u2019/g, "'")  // smart single quotes -> straight
+        .replace(/\u201C|\u201D/g, '"')  // smart double quotes -> straight (dangerous in JSON)
+        .replace(/\u2026/g, '...')        // ellipsis
+        .replace(/\u2013|\u2014/g, '-'); // em/en dash
+      const clean = cleanJSON(sanitized);
       itinerary = JSON.parse(clean);
     } catch (parseErr) {
-      // Log what we got for debugging
-      console.error('JSON parse error:', parseErr.message);
-      console.error('fullText length:', fullText.length);
-      console.error('fullText end:', fullText.slice(-200));
-      throw new Error('Could not parse itinerary: ' + parseErr.message);
+      console.error('First parse failed:', parseErr.message, 'at pos:', fullText.length);
+      // Try aggressive repair
+      try {
+        itinerary = aggressiveJSONRepair(fullText);
+      } catch(repairErr) {
+        console.error('Repair also failed:', repairErr.message);
+        throw new Error('Could not parse itinerary: ' + parseErr.message);
+      }
     }
 
     // Send final result - simple data line for easy parsing
