@@ -1,126 +1,3 @@
-function cleanJSON(raw) {
-  // Step 1: Remove markdown fences
-  let text = raw
-    .replace(/```json\s*/gi, '')
-    .replace(/```\s*/g, '')
-    .trim();
-
-  // Step 2: Extract outermost { }
-  const start = text.indexOf('{');
-  const end   = text.lastIndexOf('}');
-  if (start === -1 || end === -1) throw new Error('No JSON object found');
-  text = text.slice(start, end + 1);
-
-  // Step 3: Fix control characters inside JSON strings
-  // Scan char by char, track string context
-  let result = '';
-  let inString = false;
-  let escaped = false;
-  
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    const code = text.charCodeAt(i);
-    
-    if (escaped) {
-      escaped = false;
-      result += ch;
-      continue;
-    }
-    
-    if (ch === '\\') {
-      escaped = true;
-      result += ch;
-      continue;
-    }
-    
-    if (ch === '"') {
-      inString = !inString;
-      result += ch;
-      continue;
-    }
-    
-    if (inString) {
-      // Replace bare control characters with their escape sequences
-      if (code === 0x0A) { result += '\\n'; continue; }  // newline
-      if (code === 0x0D) { result += '\\r'; continue; }  // carriage return
-      if (code === 0x09) { result += '\\t'; continue; }  // tab
-      if (code < 0x20)   { result += ' '; continue; }      // other control chars
-    }
-    
-    result += ch;
-  }
-
-  // Step 4: Fix trailing commas before ] or }
-  result = result
-    .replace(/,\s*}/g, '}')
-    .replace(/,\s*]/g, ']');
-
-  return result;
-}
-
-function aggressiveJSONRepair(raw) {
-  // Remove markdown
-  let text = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-  
-  // Find JSON boundaries
-  const start = text.indexOf('{');
-  if (start === -1) throw new Error('No JSON found');
-  text = text.slice(start);
-  
-  // Strategy: truncate at the last valid complete top-level key
-  // Find the last successfully parseable portion by trying shorter versions
-  
-  // First try: fix control chars and trailing commas
-  let fixed = '';
-  let inStr = false;
-  let esc = false;
-  
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    const code = text.charCodeAt(i);
-    
-    if (esc) { esc = false; fixed += ch; continue; }
-    if (ch === '\\') { esc = true; fixed += ch; continue; }
-    if (ch === '"') { inStr = !inStr; fixed += ch; continue; }
-    
-    if (inStr) {
-      if (code === 0x0A || code === 0x0D) { fixed += ' '; continue; }
-      if (code < 0x20) { fixed += ' '; continue; }
-      // Fix unescaped apostrophe-like chars that might break parsing
-    }
-    fixed += ch;
-  }
-  
-  // Fix trailing commas
-  fixed = fixed
-    .replace(/,\s*([}\]])/g, '$1')
-    .replace(/([{\[,])\s*,/g, '$1');
-  
-  // Try to find the last complete closing brace
-  // Walk backwards to find a parseable subset
-  for (let len = fixed.length; len > 100; len = Math.floor(len * 0.95)) {
-    let attempt = fixed.slice(0, len);
-    // Close any open structures
-    const opens = (attempt.match(/[{[]/g) || []).length;
-    const closes = (attempt.match(/[}\]]/g) || []).length;
-    const diff = opens - closes;
-    if (diff > 0) {
-      // Add closing braces/brackets
-      for (let d = 0; d < diff; d++) {
-        attempt += '}';
-      }
-    }
-    // Remove trailing comma before added closing braces
-    attempt = attempt.replace(/,\s*([}\]])/g, '$1');
-    try {
-      return JSON.parse(attempt);
-    } catch(_) {}
-  }
-  
-  throw new Error('Could not repair JSON');
-}
-
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -149,19 +26,18 @@ export default async function handler(req, res) {
     ? Math.max(1, Math.round((new Date(returnDate) - new Date(departDate)) / 86400000))
     : 7;
 
+  const totalPax = parseInt(adults) + parseInt(children);
   const hasChildren = parseInt(children) > 0;
-  const hasInfants  = parseInt(infants) > 0;
-  const hasSeniors  = parseInt(seniors) > 0;
-  const totalPax    = parseInt(adults) + parseInt(children);
+  const hasInfants  = parseInt(infants)  > 0;
+  const hasSeniors  = parseInt(seniors)  > 0;
 
   const currencySymbols = {
     AUD:'A$', USD:'$', GBP:'£', EUR:'€', CNY:'¥',
     SGD:'S$', JPY:'¥', HKD:'HK$', CAD:'C$', NZD:'NZ$'
   };
-  const currSymbol = currencySymbols[currency] || currency;
+  const currSym = currencySymbols[currency] || currency;
 
   const MARKER = process.env.AVIASALES_MARKER || '717078';
-
   const affiliates = {
     klook:          `https://www.klook.com/en-AU/?aid=tp${MARKER}`,
     tiqets:         `https://www.tiqets.com/en/?partner=globalexplore`,
@@ -177,240 +53,96 @@ export default async function handler(req, res) {
     compensair:     `https://compensair.com/?ref=${MARKER}`,
   };
 
-  // Nearby cities logic based on trip duration
+  // Nearby cities logic
   let nearbyCitiesInstruction = '';
   const wantsNearby = nearbyCity && nearbyCity.toLowerCase().includes('yes');
-
   if (wantsNearby) {
     if (nights <= 5) {
-      nearbyCitiesInstruction = `
-NEARBY CITIES: The traveller wants nearby suggestions.
-Trip is ${nights} nights — focus primarily on the main destination.
-At the END of the itinerary (final day or practical tips), add a short section:
-"If you have extra time: [1-2 nearby cities within 1-2 hours, with transport time and why worth visiting]"
-Do NOT dedicate full days to nearby cities for a short trip.`;
+      nearbyCitiesInstruction = `NEARBY: Trip is ${nights} nights. At the end of PRACTICAL TIPS, add 1-2 nearby city suggestions with transport time only.`;
     } else if (nights <= 10) {
-      nearbyCitiesInstruction = `
-NEARBY CITIES: The traveller wants nearby suggestions. Trip is ${nights} nights.
-After covering the main destination thoroughly (first 4-5 days minimum), include 1 nearby city:
-- Dedicate 1-2 days to it in the itinerary
-- Include specific transport: how to get there, journey time, cost
-- Explain what makes it worth the side trip
-- Return to main city or continue journey from there`;
+      nearbyCitiesInstruction = `NEARBY: Trip is ${nights} nights. Include 1 nearby city as a DAY section with transport details.`;
     } else {
-      nearbyCitiesInstruction = `
-NEARBY CITIES: The traveller wants nearby suggestions. Trip is ${nights} nights — this is a long trip.
-After covering the main destination (first 5-6 days), include 2-3 nearby cities or regions:
-- Dedicate 2-3 days to each nearby destination
-- Include specific transport details (train/bus/car, journey time, cost in ${currency})
-- Each nearby city should have its own mini-itinerary with morning/afternoon/evening
-- Include hotel recommendations for each city
-- The nearby cities should flow logically (circular route or linear progression)`;
+      nearbyCitiesInstruction = `NEARBY: Trip is ${nights} nights. Include 2-3 nearby cities as DAY sections with transport and mini-itinerary.`;
     }
   } else {
-    nearbyCitiesInstruction = `
-NEARBY CITIES: The traveller does NOT want nearby city suggestions.
-Focus entirely on the specified destination(s). Do not suggest day trips to other cities.`;
+    nearbyCitiesInstruction = `NEARBY: Focus only on ${destination}. No nearby city suggestions.`;
   }
 
-  const prompt = `You are an expert luxury travel planner with intimate local knowledge of every destination worldwide. You know the hidden gems, the best local restaurants, the most efficient routes, and the insider tips that make a trip truly memorable.
+  const visitedNote = hasVisited === 'never'
+    ? 'First visit: include iconic highlights and explain what makes each special.'
+    : hasVisited === 'once'
+    ? 'Been once: skip obvious tourist spots, go deeper into local neighbourhoods and second-tier attractions.'
+    : 'Multiple visits: avoid all tourist trails, focus on hyper-local experiences and hidden gems only.';
 
-Create an exceptionally detailed, warm, and personalised day-by-day itinerary. Write like a knowledgeable friend who has lived in each city — specific, warm, and genuinely helpful.
+  const prompt = `You are an expert travel planner. Create a detailed, warm, personalised travel itinerary in PLAIN TEXT using the exact section markers below. Do NOT output JSON. Do NOT use quotes around values.
 
-TRIP DETAILS:
-- From: ${origin}
-- To: ${destination}
-- Departure: ${departDate}
-- Return: ${returnDate}
-- Duration: ${nights} nights
-- Total Budget: ${budget} ${currency} (${currSymbol})
-- Travel Class: ${travelClass}
-- Currency for all prices: ${currency} (${currSymbol})
-
-TRAVELLERS (${totalPax} total):
-- Adults: ${adults}
-- Children: ${children}${hasChildren ? ` (ages: ${childAges || 'not specified'})` : ''}
-- Infants: ${infants}${hasInfants ? ' — needs baby-friendly venues, cots, changing facilities' : ''}
-- Seniors: ${seniors}${hasSeniors ? ` (ages: ${seniorAges || 'not specified'}) — needs accessible venues, comfortable pace, step-free routes` : ''}
-
-PREFERENCES:
-- Accommodation: ${accommodationLevel} level, ${accommodationType} type, ${accommodationLocation} location
-- Daily pace: ${pace}
-- Travel styles: ${Array.isArray(travelStyle) ? travelStyle.join(', ') : travelStyle || 'General'}
-- Purpose: ${purpose || 'Holiday'}
-- Dietary: ${dietary}
-- Previous visits: ${hasVisited}
-- Local transport: ${localTransport}
-- Crowd preference: ${crowdPreference}
-- Shopping: ${shoppingFocus}
-- Flight preference: ${flightPreference}
-
-${anchors && anchors.length > 0 ? `
-FIXED COMMITMENTS — plan everything around these:
-${anchors.map(a => `- ${a.date}${a.nights ? ` (${a.nights} nights)` : ''} | ${a.city} | ${a.type} | ${a.notes}`).join('\n')}
-` : ''}
-
-${specialRequests ? `SPECIAL REQUESTS (high priority): ${specialRequests}` : ''}
-
+TRIP: ${origin} to ${destination} | ${departDate} to ${returnDate} | ${nights} nights
+TRAVELLERS: ${adults} adults${hasChildren ? `, ${children} children (${childAges})` : ''}${hasInfants ? `, ${infants} infants` : ''}${hasSeniors ? `, ${seniors} seniors (${seniorAges})` : ''} | Total: ${totalPax}
+BUDGET: ${budget} ${currency} | CLASS: ${travelClass} | ACCOMMODATION: ${accommodationLevel} ${accommodationType}
+STYLE: ${Array.isArray(travelStyle) ? travelStyle.join(', ') : travelStyle} | PACE: ${pace} | PURPOSE: ${purpose}
+DIETARY: ${dietary} | TRANSPORT: ${localTransport} | VISITED: ${hasVisited}
+${anchors && anchors.length > 0 ? `FIXED PLANS: ${anchors.map(a => `${a.date} ${a.city} (${a.type}) ${a.notes}`).join(' | ')}` : ''}
+${specialRequests ? `SPECIAL: ${specialRequests}` : ''}
 ${nearbyCitiesInstruction}
+VISITED GUIDANCE: ${visitedNote}
+CURRENCY: Always show prices in ${currency} (${currSym})
+${hasChildren ? 'FAMILY: Include child-friendly options for every activity and meal.' : ''}
+${hasSeniors ? 'SENIORS: Include accessible venues and comfortable pace.' : ''}
 
-VISITED BEFORE GUIDANCE:
-${hasVisited === 'never' ? '- First time visitor: include iconic must-see attractions but explain what makes each special beyond the obvious' : ''}
-${hasVisited === 'once' ? '- Been once: skip the most obvious tourist spots, go one layer deeper — lesser-known neighbourhoods, local restaurants, second-tier attractions that are just as rewarding' : ''}
-${hasVisited === 'multiple' ? '- Multiple visits: avoid all tourist trails entirely. Focus on hyper-local experiences, niche museums, neighbourhood markets, off-the-beaten-path areas that even many locals overlook' : ''}
+OUTPUT FORMAT — use these exact markers, one per line:
 
-QUALITY STANDARDS — every day must meet these:
+###SUMMARY###
+Write 3-4 warm sentences about what makes this trip special for this group.
 
-1. MORNING/AFTERNOON/EVENING: 4-6 sentences each with:
-   - Specific venue/neighbourhood names and why each is special
-   - Best time to arrive, what to look for, insider knowledge
-   - Practical details (transport, booking needed, dress code)
-   ${hasChildren ? '   - Child-friendly aspects for kids' : ''}
-   ${hasSeniors ? '   - Accessibility and pace notes for seniors' : ''}
+###DAY###
+NUMBER: 1
+DATE: ${departDate}
+CITY: [city name]
+TITLE: [evocative day title]
+MORNING: [3-4 sentences — specific venues, insider tips, what to see/do]
+AFTERNOON: [3-4 sentences — specific venues, insider tips]
+EVENING: [3-4 sentences — specific venues, atmosphere, what to do]
+BREAKFAST: Option 1: [Restaurant name] ([area]) — [description, price ${currSym}]. Option 2: [Restaurant name] — [description]
+LUNCH: Option 1: [Restaurant name] ([area]) — [description]. Option 2: [Restaurant name] — [description]
+DINNER: Option 1: [Restaurant name] ([area]) — [description]. Option 2: [Restaurant name] — [description]
+TIPS: [2-3 specific tips: transport cards, booking advice, timing, money-saving]
+COST: [estimated daily cost per person in ${currency}, number only]
 
-2. MEALS — exactly 2 options per meal:
-   Format: "Option 1: [Name] ([neighbourhood]) — [2 sentences on atmosphere, signature dishes, price range ${currSymbol}]. Option 2: [Name] — [description]"
-   - Real restaurant names that exist
-   - Match dietary requirement: ${dietary}
-   ${hasChildren ? '   - At least one child-friendly option per meal' : ''}
+[Repeat ###DAY### section for each day of the trip]
 
-3. TIPS: 2-3 specific actionable tips per day including transport cards, booking links, timing, money-saving advice
+###HOTELS###
+CITY: [city name]
+NAME: [exact hotel name]
+LEVEL: ${accommodationLevel}
+PRICE: [price per night in ${currency}, number only]
+LOCATION: [neighbourhood — X min walk to main attraction]
+WHY: [2 sentences why this suits this specific group]
+---
+NAME: [second hotel]
+PRICE: [number only]
+LOCATION: [neighbourhood]
+WHY: [2 sentences]
+---
+NAME: [third hotel]
+PRICE: [number only]
+LOCATION: [neighbourhood]
+WHY: [2 sentences]
 
-4. HOTELS: 3 real hotels per city matching ${accommodationLevel} level:
-   - Explain specifically why each suits ${totalPax} people for ${purpose}
-   - Include neighbourhood and walking distance to key attractions
-   - Price in ${currSymbol} per night
+###FOOD###
+[Dish name] at [Restaurant] ([Neighbourhood]) — [one sentence why unmissable]
+[Repeat for 6-8 items]
 
-5. FOOD HIGHLIGHTS: 8-10 items, each with specific restaurant name
+###TIPS###
+[One specific, actionable tip per line — transport apps, payment, cultural etiquette, booking, safety]
+[Write 8-10 tips, one per line]
 
-6. PRACTICAL TIPS: 10-12 highly specific tips including transport apps, payment advice, cultural etiquette, booking requirements
-   ${hasChildren ? '   - Include family-specific tips (stroller access, kid hours, family discounts)' : ''}
-   ${hasSeniors ? '   - Include senior-friendly access and discount information' : ''}
-
-7. BUDGET: Calculate for ${totalPax} people total return trip in ${currency}:
-   - Flights: ${travelClass} for ${adults} adult(s) + ${children} child(ren) return
-   - Accommodation: ${accommodationLevel} for ${nights} nights
-   - Food: realistic daily budget × ${nights} days × ${totalPax} people
-   - Activities and transport costs
-   All amounts in ${currency}
-
-CRITICAL JSON RULES — you MUST follow these exactly:
-- Output ONLY valid JSON, no markdown, no explanation, no code fences
-- Do NOT use apostrophes (') in any string value — use (') or rewrite without them
-- Do NOT use unescaped double quotes inside string values
-- Do NOT use line breaks inside string values — write everything on one line per field
-- Do NOT add trailing commas after the last item in arrays or objects
-- Keep all string values simple and clean
-
-RESPOND WITH VALID JSON ONLY:
-
-{
-  "summary": "4-5 warm specific sentences about what makes this trip special for this group",
-  "days": [
-    {
-      "day": 1,
-      "date": "YYYY-MM-DD",
-      "city": "City Name",
-      "title": "Evocative specific day theme",
-      "morning": "4-6 sentence description with specific venues and insider tips",
-      "afternoon": "4-6 sentence description",
-      "evening": "4-6 sentence description",
-      "meals": {
-        "breakfast": "Option 1: [Name] ([area]) — [description, price ${currSymbol}]. Option 2: [Name] — [description]",
-        "lunch": "Option 1: [Name] ([area]) — [description]. Option 2: [Name] — [description]",
-        "dinner": "Option 1: [Name] ([area]) — [description]. Option 2: [Name] — [description]"
-      },
-      "tips": "Tip 1: [specific]. Tip 2: [transport/booking]. Tip 3: [insider]",
-      "estimatedCost": 0
-    }
-  ],
-  "hotels": [
-    {
-      "city": "City Name",
-      "recommendations": [
-        {
-          "name": "Exact Hotel Name",
-          "level": "${accommodationLevel}",
-          "pricePerNight": 0,
-          "currency": "${currency}",
-          "location": "Neighbourhood — X min walk to [key attraction]",
-          "whyRecommended": "2-3 sentences specific to this group's needs"
-        }
-      ]
-    }
-  ],
-  "foodHighlights": [
-    "Dish at Restaurant (Neighbourhood) — why unmissable"
-  ],
-  "practicalTips": [
-    "Specific actionable tip with all details"
-  ],
-  "affiliateRecommendations": {
-    "activities": {
-      "title": "Book Activities & Skip the Queue",
-      "description": "Pre-book to guarantee entry and avoid long waits",
-      "platforms": [
-        {"name": "Klook", "url": "${affiliates.klook}", "description": "Best for Asia activities, theme parks and day tours"},
-        {"name": "Tiqets", "url": "${affiliates.tiqets}", "description": "Instant mobile tickets for museums and attractions"},
-        {"name": "WeGoTrip", "url": "${affiliates.wegotrip}", "description": "Self-guided audio tours with entry tickets included"}
-      ]
-    },
-    "airportTransfers": {
-      "title": "Airport Transfers",
-      "description": "Door-to-door with professional drivers — no taxi queues",
-      "platforms": [
-        {"name": "Welcome Pickups", "url": "${affiliates.welcomePickups}", "description": "Fixed prices, meet & greet, available worldwide"},
-        {"name": "Kiwitaxi", "url": "${affiliates.kiwitaxi}", "description": "Transfers in 100+ countries, various vehicle types"}
-      ]
-    },
-    "esim": {
-      "title": "Stay Connected — Travel eSIM",
-      "description": "Avoid expensive roaming — activate before you fly",
-      "platforms": [
-        {"name": "Airalo", "url": "${affiliates.airalo}", "description": "World's largest eSIM store — data in 200+ countries"},
-        {"name": "Yesim", "url": "${affiliates.yesim}", "description": "Premium Swiss eSIM with global coverage"}
-      ]
-    },
-    "insurance": {
-      "title": "Travel Insurance",
-      "description": "Travel with peace of mind",
-      "platforms": [
-        {"name": "EKTA Insurance", "url": "${affiliates.ekta}", "description": "Comprehensive cover with fast online claims"}
-      ]
-    },
-    "flightProtection": {
-      "title": "Flight Delay Compensation",
-      "description": "Free to check — claim up to €600 if your flight is disrupted",
-      "platforms": [
-        {"name": "AirHelp", "url": "${affiliates.airhelp}", "description": "Largest flight compensation service worldwide"},
-        {"name": "Compensair", "url": "${affiliates.compensair}", "description": "Fast compensation for delayed or cancelled flights"}
-      ]
-    }${localTransport && localTransport.toLowerCase().includes('rental') ? `,
-    "carRental": {
-      "title": "Car Rental",
-      "description": "Best rates from local and international companies",
-      "platforms": [
-        {"name": "GetRentacar", "url": "${affiliates.getRentacar}", "description": "Compare 800+ car rental companies worldwide"}
-      ]
-    }` : ''}${anchors && anchors.some(a => a.type && (a.type.toLowerCase().includes('concert') || a.type.toLowerCase().includes('show') || a.type.toLowerCase().includes('event'))) ? `,
-    "events": {
-      "title": "Event & Concert Tickets",
-      "description": "Find and book tickets for live events worldwide",
-      "platforms": [
-        {"name": "TicketNetwork", "url": "${affiliates.ticketNetwork}", "description": "Official tickets for concerts, sports and theatre"}
-      ]
-    }` : ''}
-  },
-  "budgetBreakdown": {
-    "flights": 0,
-    "accommodation": 0,
-    "food": 0,
-    "activities": 0,
-    "transport": 0,
-    "total": 0,
-    "currency": "${currency}"
-  }
-}`;
+###BUDGET###
+FLIGHTS: [number only in ${currency}]
+ACCOMMODATION: [number only]
+FOOD: [number only]
+ACTIVITIES: [number only]
+TRANSPORT: [number only]
+TOTAL: [number only]`;
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -422,7 +154,7 @@ RESPOND WITH VALID JSON ONLY:
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 5000,
+        max_tokens: 8000,
         stream: true,
         messages: [{ role: 'user', content: prompt }]
       })
@@ -437,12 +169,11 @@ RESPOND WITH VALID JSON ONLY:
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
-    res.setHeader('Transfer-Encoding', 'chunked');
 
-    // Read Claude SSE stream and accumulate full text
-    const reader = response.body.getReader();
+    // Accumulate full text from Claude SSE stream
+    const reader  = response.body.getReader();
     const decoder = new TextDecoder();
-    let fullText = '';
+    let fullText  = '';
     let sseBuffer = '';
 
     while (true) {
@@ -451,7 +182,7 @@ RESPOND WITH VALID JSON ONLY:
 
       sseBuffer += decoder.decode(value, { stream: true });
       const lines = sseBuffer.split('\n');
-      sseBuffer = lines.pop() || ''; // keep incomplete line
+      sseBuffer = lines.pop() || '';
 
       for (const line of lines) {
         if (!line.startsWith('data: ')) continue;
@@ -459,40 +190,17 @@ RESPOND WITH VALID JSON ONLY:
         if (!data || data === '[DONE]') continue;
         try {
           const parsed = JSON.parse(data);
-          // Claude streaming event types
           if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta') {
             fullText += parsed.delta.text || '';
-          } else if (parsed.type === 'message_delta' && parsed.usage) {
-            // Message complete signal
           }
         } catch(_) {}
       }
     }
 
-    // Parse the complete JSON response
-    let itinerary;
-    try {
-      // Pre-process: remove any BOM or invisible chars
-      const sanitized = fullText
-        .replace(/\uFEFF/g, '')           // BOM
-        .replace(/\u2018|\u2019/g, "'")  // smart single quotes -> straight
-        .replace(/\u201C|\u201D/g, '"')  // smart double quotes -> straight (dangerous in JSON)
-        .replace(/\u2026/g, '...')        // ellipsis
-        .replace(/\u2013|\u2014/g, '-'); // em/en dash
-      const clean = cleanJSON(sanitized);
-      itinerary = JSON.parse(clean);
-    } catch (parseErr) {
-      console.error('First parse failed:', parseErr.message, 'at pos:', fullText.length);
-      // Try aggressive repair
-      try {
-        itinerary = aggressiveJSONRepair(fullText);
-      } catch(repairErr) {
-        console.error('Repair also failed:', repairErr.message);
-        throw new Error('Could not parse itinerary: ' + parseErr.message);
-      }
-    }
+    // Parse plain text into structured JSON
+    const itinerary = parsePlainText(fullText, affiliates, localTransport, anchors, currency);
 
-    // Send final result - simple data line for easy parsing
+    // Send result
     res.write('data: ' + JSON.stringify({ success: true, itinerary }) + '\n\n');
     res.end();
 
@@ -503,4 +211,200 @@ RESPOND WITH VALID JSON ONLY:
     res.write('data: ' + JSON.stringify({ error: error.message }) + '\n\n');
     res.end();
   }
+}
+
+// ── PLAIN TEXT PARSER ──
+function parsePlainText(text, affiliates, localTransport, anchors, currency) {
+  const sections = splitSections(text);
+
+  return {
+    summary:    sections.SUMMARY || '',
+    days:       parseDays(sections.DAYS || []),
+    hotels:     parseHotels(sections.HOTELS || ''),
+    foodHighlights: parseList(sections.FOOD || ''),
+    practicalTips:  parseList(sections.TIPS || ''),
+    budgetBreakdown: parseBudget(sections.BUDGET || '', currency),
+    affiliateRecommendations: buildAffiliates(affiliates, localTransport, anchors),
+  };
+}
+
+function splitSections(text) {
+  const result = { DAYS: [] };
+  const lines  = text.split('\n');
+  let current  = null;
+  let buf      = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (trimmed === '###SUMMARY###') {
+      if (current && current !== 'DAY') flush(result, current, buf);
+      current = 'SUMMARY'; buf = [];
+    } else if (trimmed === '###DAY###') {
+      if (current === 'DAY') result.DAYS.push(buf.join('\n'));
+      else if (current) flush(result, current, buf);
+      current = 'DAY'; buf = [];
+    } else if (trimmed === '###HOTELS###') {
+      if (current === 'DAY') result.DAYS.push(buf.join('\n'));
+      else if (current) flush(result, current, buf);
+      current = 'HOTELS'; buf = [];
+    } else if (trimmed === '###FOOD###') {
+      if (current === 'DAY') result.DAYS.push(buf.join('\n'));
+      else if (current) flush(result, current, buf);
+      current = 'FOOD'; buf = [];
+    } else if (trimmed === '###TIPS###') {
+      if (current === 'DAY') result.DAYS.push(buf.join('\n'));
+      else if (current) flush(result, current, buf);
+      current = 'TIPS'; buf = [];
+    } else if (trimmed === '###BUDGET###') {
+      if (current === 'DAY') result.DAYS.push(buf.join('\n'));
+      else if (current) flush(result, current, buf);
+      current = 'BUDGET'; buf = [];
+    } else if (current) {
+      buf.push(line);
+    }
+  }
+
+  // flush last section
+  if (current === 'DAY') result.DAYS.push(buf.join('\n'));
+  else if (current) flush(result, current, buf);
+
+  return result;
+}
+
+function flush(result, key, buf) {
+  result[key] = buf.join('\n').trim();
+}
+
+function getField(text, key) {
+  const re = new RegExp('^' + key + ':\\s*(.+)$', 'm');
+  const m  = text.match(re);
+  return m ? m[1].trim() : '';
+}
+
+function parseDays(dayBlocks) {
+  return dayBlocks.map((block, i) => {
+    const meals = {
+      breakfast: getField(block, 'BREAKFAST'),
+      lunch:     getField(block, 'LUNCH'),
+      dinner:    getField(block, 'DINNER'),
+    };
+    return {
+      day:       parseInt(getField(block, 'NUMBER')) || (i + 1),
+      date:      getField(block, 'DATE'),
+      city:      getField(block, 'CITY'),
+      title:     getField(block, 'TITLE'),
+      morning:   getField(block, 'MORNING'),
+      afternoon: getField(block, 'AFTERNOON'),
+      evening:   getField(block, 'EVENING'),
+      meals,
+      tips:      getField(block, 'TIPS'),
+      estimatedCost: parseFloat(getField(block, 'COST')) || 0,
+    };
+  }).filter(d => d.morning || d.title);
+}
+
+function parseHotels(text) {
+  if (!text) return [];
+  // Find all CITY: lines and group hotels under them
+  const result = [];
+  const cityBlocks = text.split(/^CITY:/m).filter(Boolean);
+
+  for (const block of cityBlocks) {
+    const lines  = block.trim().split('\n');
+    const city   = lines[0].trim();
+    const rest   = lines.slice(1).join('\n');
+    const hotels = rest.split('---').map(h => {
+      const name  = getField(h, 'NAME');
+      const price = parseFloat(getField(h, 'PRICE')) || 0;
+      if (!name) return null;
+      return {
+        name,
+        level:          getField(h, 'LEVEL') || 'Comfort',
+        pricePerNight:  price,
+        location:       getField(h, 'LOCATION'),
+        whyRecommended: getField(h, 'WHY'),
+      };
+    }).filter(Boolean);
+
+    if (city && hotels.length > 0) {
+      result.push({ city, recommendations: hotels });
+    }
+  }
+  return result;
+}
+
+function parseList(text) {
+  if (!text) return [];
+  return text.split('\n')
+    .map(l => l.trim())
+    .filter(l => l && !l.startsWith('#'));
+}
+
+function parseBudget(text, currency) {
+  const flights       = parseFloat(getField(text, 'FLIGHTS'))       || 0;
+  const accommodation = parseFloat(getField(text, 'ACCOMMODATION')) || 0;
+  const food          = parseFloat(getField(text, 'FOOD'))          || 0;
+  const activities    = parseFloat(getField(text, 'ACTIVITIES'))    || 0;
+  const transport     = parseFloat(getField(text, 'TRANSPORT'))     || 0;
+  const total         = parseFloat(getField(text, 'TOTAL'))         || (flights + accommodation + food + activities + transport);
+  return { flights, accommodation, food, activities, transport, total, currency };
+}
+
+function buildAffiliates(affiliates, localTransport, anchors) {
+  const hasCarRental = localTransport && localTransport.toLowerCase().includes('rental');
+  const hasEvent = anchors && anchors.some(a => a.type && (a.type.toLowerCase().includes('concert') || a.type.toLowerCase().includes('show')));
+
+  return {
+    activities: {
+      title: 'Book Activities & Skip the Queue',
+      description: 'Pre-book to guarantee entry and avoid long waits',
+      platforms: [
+        { name: 'Klook',     url: affiliates.klook,    description: 'Best for Asia activities, theme parks and day tours' },
+        { name: 'Tiqets',    url: affiliates.tiqets,   description: 'Instant mobile tickets for museums and attractions' },
+        { name: 'WeGoTrip',  url: affiliates.wegotrip, description: 'Self-guided audio tours with entry tickets included' },
+      ]
+    },
+    airportTransfers: {
+      title: 'Airport Transfers',
+      description: 'Door-to-door with professional drivers — no taxi queues',
+      platforms: [
+        { name: 'Welcome Pickups', url: affiliates.welcomePickups, description: 'Fixed prices, meet & greet, available worldwide' },
+        { name: 'Kiwitaxi',        url: affiliates.kiwitaxi,       description: 'Transfers in 100+ countries, various vehicle types' },
+      ]
+    },
+    esim: {
+      title: 'Stay Connected — Travel eSIM',
+      description: 'Avoid expensive roaming — activate before you fly',
+      platforms: [
+        { name: 'Airalo', url: affiliates.airalo, description: 'World largest eSIM store — data in 200+ countries' },
+        { name: 'Yesim',  url: affiliates.yesim,  description: 'Premium Swiss eSIM with global coverage' },
+      ]
+    },
+    insurance: {
+      title: 'Travel Insurance',
+      description: 'Travel with peace of mind',
+      platforms: [
+        { name: 'EKTA Insurance', url: affiliates.ekta, description: 'Comprehensive cover with fast online claims' },
+      ]
+    },
+    flightProtection: {
+      title: 'Flight Delay Compensation',
+      description: 'Free to check — claim up to EUR600 if your flight is disrupted',
+      platforms: [
+        { name: 'AirHelp',    url: affiliates.airhelp,    description: 'Largest flight compensation service worldwide' },
+        { name: 'Compensair', url: affiliates.compensair, description: 'Fast compensation for delayed or cancelled flights' },
+      ]
+    },
+    ...(hasCarRental ? { carRental: {
+      title: 'Car Rental',
+      description: 'Best rates from local and international companies',
+      platforms: [{ name: 'GetRentacar', url: affiliates.getRentacar, description: 'Compare 800+ car rental companies worldwide' }]
+    }} : {}),
+    ...(hasEvent ? { events: {
+      title: 'Event & Concert Tickets',
+      description: 'Find and book tickets for live events worldwide',
+      platforms: [{ name: 'TicketNetwork', url: affiliates.ticketNetwork, description: 'Official tickets for concerts, sports and theatre' }]
+    }} : {}),
+  };
 }
