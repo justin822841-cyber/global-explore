@@ -658,54 +658,6 @@
 </div>
 
 <script>
-  // Call APIs from loading page
-async function fetchItinerary() {
-  const raw = localStorage.getItem('ge_formData');
-  if (!raw) {
-    localStorage.setItem('ge_results', JSON.stringify({ error: 'no data' }));
-    return;
-  }
-
-  const formData = JSON.parse(raw);
-  const originCode = formData.origin?.match(/\(([A-Z]{3})\)/)?.[1] || formData.origin?.slice(0,3).toUpperCase() || 'MEL';
-  const destCode   = formData.destination?.match(/\(([A-Z]{3})\)/)?.[1] || formData.destination?.slice(0,3).toUpperCase() || 'TYO';
-
-  try {
-    const [flightsRes, itineraryRes] = await Promise.all([
-      fetch('/api/flights', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          origin: originCode,
-          destination: destCode,
-          date: formData.departDate,
-          adults: formData.adults || 1,
-          children: formData.children || 0,
-          infants: formData.infants || 0
-        })
-      }),
-      fetch('/api/itinerary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      })
-    ]);
-
-    const flightsData   = await flightsRes.json();
-    const itineraryData = await itineraryRes.json();
-
-    localStorage.setItem('ge_results', JSON.stringify({
-      flights:   flightsData,
-      itinerary: itineraryData.itinerary
-    }));
-
-  } catch(err) {
-    localStorage.setItem('ge_results', JSON.stringify({ error: err.message }));
-  }
-}
-
-// Start fetching immediately
-fetchItinerary();
   const params  = new URLSearchParams(window.location.search);
   const lang    = params.get('lang') || 'en';
   const dest    = params.get('dest') || '';
@@ -782,6 +734,104 @@ fetchItinerary();
   setStep(0);
   [2000, 5000, 9500, 14000].forEach((t,i) => setTimeout(() => setStep(i+1), t));
 
+
+  // ── FETCH ITINERARY WITH STREAMING ──
+  async function fetchItinerary() {
+    const raw = localStorage.getItem('ge_formData');
+    if (!raw) {
+      localStorage.setItem('ge_results', JSON.stringify({ error: 'no data' }));
+      return;
+    }
+
+    const formData = JSON.parse(raw);
+    const originCode = formData.origin?.match(/\(([A-Z]{3})\)/)?.[1] || formData.origin?.slice(0,3).toUpperCase() || 'MEL';
+    const destCode   = formData.destination?.match(/\(([A-Z]{3})\)/)?.[1] || formData.destination?.slice(0,3).toUpperCase() || 'TYO';
+
+    let flightsData = null;
+
+    // 1. Fetch flights (fast, normal JSON)
+    try {
+      const flightsRes = await fetch('/api/flights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          origin:      originCode,
+          destination: destCode,
+          date:        formData.departDate,
+          adults:      formData.adults      || 1,
+          children:    formData.children    || 0,
+          infants:     formData.infants     || 0,
+          travelClass: formData.travelClass || 'Economy',
+          currency:    formData.currency    || 'AUD'
+        })
+      });
+      flightsData = await flightsRes.json();
+    } catch(err) {
+      console.warn('Flights fetch error:', err.message);
+      flightsData = { error: err.message };
+    }
+
+    // 2. Fetch itinerary with SSE streaming
+    try {
+      const itineraryRes = await fetch('/api/itinerary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+
+      if (!itineraryRes.ok) {
+        throw new Error('Itinerary API returned ' + itineraryRes.status);
+      }
+
+      const reader  = itineraryRes.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer    = '';
+      let itineraryData = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const jsonStr = line.slice(6).trim();
+          if (!jsonStr || jsonStr === '[DONE]') continue;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            if (parsed.success && parsed.itinerary) {
+              itineraryData = parsed;
+            } else if (parsed.error) {
+              throw new Error(parsed.error);
+            }
+          } catch(e) {
+            // Ignore partial JSON parse errors during streaming
+          }
+        }
+      }
+
+      if (!itineraryData) {
+        throw new Error('No itinerary data received from stream');
+      }
+
+      // Store complete results
+      localStorage.setItem('ge_results', JSON.stringify({
+        flights:   flightsData,
+        itinerary: itineraryData.itinerary
+      }));
+
+    } catch(err) {
+      console.error('Itinerary stream error:', err.message);
+      localStorage.setItem('ge_results', JSON.stringify({ error: err.message }));
+    }
+  }
+
+  // Start immediately
+  fetchItinerary();
+
   // Poll for results
   const poll = setInterval(() => {
     if (localStorage.getItem('ge_results')) {
@@ -796,7 +846,7 @@ fetchItinerary();
   setTimeout(() => {
     if (!localStorage.getItem('ge_results'))
       localStorage.setItem('ge_results', JSON.stringify({error:'timeout'}));
-  }, 45000);
+  }, 300000);
 </script>
 </body>
 </html>
