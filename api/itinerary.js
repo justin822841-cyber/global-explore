@@ -169,19 +169,34 @@ TRAVEL DAY RULES — follow these precisely:
 OUTPUT LANGUAGE: ${langInstruction}
 
 HOTEL REFERENCE RULE — follow precisely:
-- In daily itinerary descriptions, ALWAYS say "your hotel" not a specific hotel name
-- EXCEPTION: On Day 1 arrival scenarios only, add one bracketed recommendation after first mention of hotel:
-  Format: "your hotel (Based on your ${accommodationLevel} preference, we suggest [Hotel Name] — [one sentence on why: location benefit, key feature])"
-- Example: "Check into your hotel (Based on your Luxury preference, we suggest The Beverly Hills Hotel — iconic pink palace 5 min walk to Rodeo Drive) and take a gentle stroll..."
-- All other days: just say "your hotel" with no brackets
-- The ###HOTELS### section will provide full recommendations separately
+- In daily itinerary descriptions, ALWAYS say "your hotel" — never mention a specific hotel name
+- All days except Day 1: just say "your hotel" with no extra details
+- The ###HOTELS### section provides full recommendations separately
+
+DAY 1 ARRIVAL FORMAT — use this two-paragraph structure in EVERY arrival scenario:
+
+Paragraph 1 (completely generic — do NOT mention any specific street, landmark or location near the hotel):
+"Check into your hotel and take some time to settle in and freshen up after your long journey. Spend the rest of the day gently exploring your immediate surroundings at a relaxed pace — a short neighbourhood walk, a nearby café, or simply resting at the hotel to recover from the flight and prepare for tomorrow."
+
+Paragraph 2 (our recommendation, on a new line, clearly separated):
+"— Our ${accommodationLevel} recommendation: [Hotel Name] — [one sentence: location benefit and one standout feature specific to this group's needs]"
+
+Example:
+"Check into your hotel and take some time to settle in and freshen up after your long journey. Spend the rest of the day gently exploring your immediate surroundings at a relaxed pace — a short neighbourhood walk, a nearby café, or simply resting at the hotel to recover from the flight and prepare for tomorrow.
+
+— Our Luxury recommendation: The Beverly Hills Hotel — iconic pink palace 5 min walk to Rodeo Drive, with the legendary Polo Lounge downstairs perfect for a relaxed first dinner."
+
+IMPORTANT: Paragraph 1 must work for ANY hotel in ANY city. Never assume location. Keep two paragraphs clearly separated.
 
 CRITICAL MARKER RULE: ALL section markers and field labels (###DAY###, NUMBER:, DATE:, CITY:, MORNING:, AFTERNOON:, EVENING:, LATE_ARRIVAL:, TYPICAL_ARRIVAL:, TIPS:, EVENTS:, COST:, NAME:, PRICE:, LOCATION:, WHY:, LEVEL:, YOUR_DATES:, LOW:, TYPICAL:, PEAK:, CALENDAR:, FLIGHTS:, ACCOMMODATION:, FOOD:, ACTIVITIES:, TRANSPORT:, TOTAL:, BREAKFAST:, LUNCH:, DINNER:) MUST ALWAYS be written in ENGLISH regardless of output language. Only the VALUES after the colon should be in Chinese when Chinese is selected.
 
 OUTPUT FORMAT — use these EXACT markers, one per line, no extra punctuation:
 
 ###SUMMARY###
-3-4 sentences covering ALL cities visited, key highlights, and what makes this trip special for this specific group.
+3-4 sentences covering ONLY the cities that actually appear in the itinerary below. 
+STRICT RULE: Do NOT mention any city not explicitly in the day-by-day plan.
+The cities in this trip are: ${destination.replace(/\s*\([A-Z]+\)/,'').trim()}${anchors && anchors.length > 0 ? ' and ' + [...new Set(anchors.map(a => a.city))].join(', ') : ''}.
+Cover key highlights and what makes this trip special for this specific group.
 
 ###DAY###
 NUMBER: 1
@@ -368,7 +383,7 @@ function parseFlightPrice(text) {
   };
 }
 
-function parsePlainText(text, affiliates, localTransport, anchors, currency, lang) {
+function parsePlainText(text, affiliates, localTransport, anchors, currency) {
   const sections = splitSections(text);
 
   return {
