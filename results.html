@@ -181,6 +181,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);}
 .user-avatar{width:34px;height:34px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;border:none;transition:all 0.2s;flex-shrink:0;}
 .user-avatar:hover{background:var(--gold-light);}
 
+
+.day-events{padding:14px 20px;background:rgba(201,168,76,0.04);border-top:1px solid rgba(201,168,76,0.15);}
+.day-events-title{font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--gold);font-weight:500;margin-bottom:8px;}
+.day-events-content{font-size:13px;color:var(--text-secondary);line-height:1.75;white-space:pre-line;}
 </style>
 </head>
 <body class="lang-en">
@@ -283,7 +287,15 @@ function render() {
   const dest     = localStorage.getItem('ge_dest')   || '';
   const dateFrom = localStorage.getItem('ge_dateFrom') || '';
   const dateTo   = localStorage.getItem('ge_dateTo')   || '';
-  const adults   = localStorage.getItem('ge_adults')   || '1';
+  const adultsNum   = parseInt(localStorage.getItem('ge_adults')   || '1');
+  const formDataRaw = localStorage.getItem('ge_formData');
+  let formData = {};
+  try { formData = JSON.parse(formDataRaw || '{}'); } catch(_) {}
+  const childrenNum = parseInt(formData.children || 0);
+  const infantsNum  = parseInt(formData.infants  || 0);
+  const seniorsNum  = parseInt(formData.seniors  || 0);
+  const totalTravellers = adultsNum + childrenNum + infantsNum + seniorsNum;
+  const adults = String(totalTravellers);
   const nights   = itinerary.days ? Math.max(itinerary.days.length - 1, 1) : 0;
   const aff      = itinerary.affiliateRecommendations || {};
 
@@ -300,7 +312,7 @@ function render() {
           <div class="summary-tags">
             <div class="summary-tag">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-              <span class="en">${adults} travellers</span><span class="zh">${adults} 位旅行者</span>
+              <span class="en">${adultsNum} adult${adultsNum>1?'s':''}${childrenNum>0?', '+childrenNum+' child'+(childrenNum>1?'ren':''):''}${infantsNum>0?', '+infantsNum+' infant'+(infantsNum>1?'s':''):''}${seniorsNum>0?', '+seniorsNum+' senior'+(seniorsNum>1?'s':''):''}</span><span class="zh">${adults} 位旅行者</span>
             </div>
             ${nights>0?`<div class="summary-tag"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span class="en">${nights} nights</span><span class="zh">${nights} 晚</span></div>`:''}
             ${flights?.cheapest?`<div class="summary-tag"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21 4 19.5 2.5S18 2 16.5 3.5L13 7 4.8 5.2l-2 2 6.3 3.6L5 16l-1.5.4L2 18l2 .5.5 2 1.5-1.5.5-1.5 4-4.1 3.6 6.3 2-2z"/></svg><span>Best fare: ${fmt(flights.cheapest.price)}</span></div>`:''}
@@ -359,50 +371,20 @@ function render() {
 }
 
 function renderFlights(origin, dest, dateFrom, dateTo, adults) {
-  if (!flights) return '';
-  const top5 = flights.top5 || [];
-  const best = flights.cheapest;
-  if (!best && !top5.length) {
-    const link = flights.searchLink || '#';
-    return `<div class="section-card">
-      <div class="section-card-header">
-        <div class="section-card-title">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21 4 19.5 2.5S18 2 16.5 3.5L13 7 4.8 5.2l-2 2 6.3 3.6L5 16l-1.5.4L2 18l2 .5.5 2 1.5-1.5.5-1.5 4-4.1 3.6 6.3 2-2z"/></svg>
-          <span class="en">Flights</span><span class="zh">机票</span>
-        </div>
-      </div>
-      <div class="section-card-body">
-        <p style="font-size:14px;color:var(--text-secondary);margin-bottom:16px;" class="en">No cached fares found for these dates. Click below to search live prices.</p>
-        <p style="font-size:14px;color:var(--text-secondary);margin-bottom:16px;" class="zh">未找到缓存票价，点击下方搜索实时价格。</p>
-        <a href="${link}" target="_blank" class="flight-book-btn" style="display:inline-block;">
-          <span class="en">Search Flights →</span><span class="zh">搜索航班 →</span>
-        </a>
-      </div>
-    </div>`;
-  }
-
   const oCode = origin.match(/\(([A-Z]{3})\)/)?.[1] || origin.slice(0,3).toUpperCase();
   const dCode = dest.match(/\(([A-Z]{3})\)/)?.[1]   || dest.slice(0,3).toUpperCase();
   const oName = origin.replace(/\s*\([A-Z]+\)/,'').trim();
   const dName = dest.replace(/\s*\([A-Z]+\)/,'').trim();
+  const depDate = dateFrom ? dateFrom.replace(/-/g,'') : '';
 
-  const fareRows = top5.map((f,i) => {
-    const d = new Date(f.date);
-    const label = d.toLocaleDateString('en',{weekday:'short',month:'short',day:'numeric'});
-    return `<a class="fare-row ${i===0?'best-fare':''}" href="${f.link}" target="_blank">
-      <div>
-        <div class="fare-date">${label}</div>
-        <div style="display:flex;gap:8px;margin-top:4px;">
-          <span class="fare-airline">${f.airline||''}</span>
-          <span class="fare-stops">${f.direct?'Direct':(f.transfers||0)+' stop'} · ${f.travelClass||'Economy'}</span>
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <div class="fare-price">${fmt(f.price)}</div>
-        <div class="fare-badge">BEST</div>
-      </div>
-    </a>`;
-  }).join('');
+  // Build search links
+  const aviasalesUrl  = `https://www.aviasales.com/search/${oCode}${depDate}${dCode}${adults}?marker=${localStorage.getItem('ge_currency')||'717078'}`;
+  const bookingUrl    = `https://www.booking.com/flights/search.html?from=${oCode}&to=${dCode}&depart=${dateFrom}&adults=${adults}&lang=en-gb`;
+  const tripUrl       = `https://uk.trip.com/flights/search?dcity=${oCode}&acity=${dCode}&ddate=${dateFrom}&adult=${adults}&curr=${currency}`;
+  const googleUrl     = `https://www.google.com/travel/flights?q=flights+from+${encodeURIComponent(oName)}+to+${encodeURIComponent(dName)}+on+${dateFrom}`;
+
+  // Get price analysis from itinerary if available
+  const priceAnalysis = itinerary?.flightPriceAnalysis || null;
 
   return `<div class="section-card">
     <div class="section-card-header">
@@ -410,33 +392,93 @@ function renderFlights(origin, dest, dateFrom, dateTo, adults) {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21 4 19.5 2.5S18 2 16.5 3.5L13 7 4.8 5.2l-2 2 6.3 3.6L5 16l-1.5.4L2 18l2 .5.5 2 1.5-1.5.5-1.5 4-4.1 3.6 6.3 2-2z"/></svg>
         <span class="en">Flights</span><span class="zh">机票</span>
       </div>
-      <span style="font-size:12px;color:var(--text-secondary);" class="en">Top 5 cheapest — 30-day search · ${currency}</span>
-      <span style="font-size:12px;color:var(--text-secondary);" class="zh">30天内最便宜的5个日期 · ${currency}</span>
     </div>
     <div class="section-card-body">
-      ${best?`<div class="flight-best">
-        <div style="display:flex;align-items:center;gap:16px;">
-          <div><div class="flight-city-code">${oCode}</div><div class="flight-city-name">${oName}</div></div>
-          <div style="display:flex;align-items:center;gap:6px;">
-            <div class="flight-line"></div>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(201,168,76,0.7)" stroke-width="1.5"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21 4 19.5 2.5S18 2 16.5 3.5L13 7 4.8 5.2l-2 2 6.3 3.6L5 16l-1.5.4L2 18l2 .5.5 2 1.5-1.5.5-1.5 4-4.1 3.6 6.3 2-2z"/></svg>
-            <div class="flight-line"></div>
+      <!-- Route -->
+      <div style="display:flex;align-items:center;gap:16px;padding:16px 0;border-bottom:1px solid var(--mist);margin-bottom:16px;">
+        <div style="text-align:center;">
+          <div style="font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:600;color:var(--ink);">${oCode}</div>
+          <div style="font-size:11px;color:var(--text-secondary);">${oName}</div>
+        </div>
+        <div style="flex:1;display:flex;align-items:center;gap:8px;">
+          <div style="flex:1;height:1px;background:var(--mist);"></div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.5"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21 4 19.5 2.5S18 2 16.5 3.5L13 7 4.8 5.2l-2 2 6.3 3.6L5 16l-1.5.4L2 18l2 .5.5 2 1.5-1.5.5-1.5 4-4.1 3.6 6.3 2-2z"/></svg>
+          <div style="flex:1;height:1px;background:var(--mist);"></div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:600;color:var(--ink);">${dCode}</div>
+          <div style="font-size:11px;color:var(--text-secondary);">${dName}</div>
+        </div>
+      </div>
+
+      ${priceAnalysis ? `
+      <!-- AI Price Analysis -->
+      <div style="margin-bottom:20px;">
+        <div style="font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-secondary);font-weight:500;margin-bottom:12px;" class="en">Price Period Analysis</div>
+        <div style="font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-secondary);font-weight:500;margin-bottom:12px;" class="zh">价格区间分析</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+          <div style="padding:12px;background:#f0faf0;border:1px solid #b3e6b3;border-radius:4px;text-align:center;">
+            <div style="font-size:11px;font-weight:600;color:#2d7a2d;margin-bottom:4px;" class="en">🟢 Low Season</div>
+            <div style="font-size:11px;font-weight:600;color:#2d7a2d;margin-bottom:4px;" class="zh">🟢 低价期</div>
+            <div style="font-size:12px;color:#2d7a2d;">${priceAnalysis.low||'—'}</div>
           </div>
-          <div><div class="flight-city-code">${dCode}</div><div class="flight-city-name">${dName}</div></div>
+          <div style="padding:12px;background:#fffbf0;border:1px solid #e6d5b3;border-radius:4px;text-align:center;">
+            <div style="font-size:11px;font-weight:600;color:#7a5a2d;margin-bottom:4px;" class="en">🟡 Typical</div>
+            <div style="font-size:11px;font-weight:600;color:#7a5a2d;margin-bottom:4px;" class="zh">🟡 普通期</div>
+            <div style="font-size:12px;color:#7a5a2d;">${priceAnalysis.typical||'—'}</div>
+          </div>
+          <div style="padding:12px;background:#fff0f0;border:1px solid #e6b3b3;border-radius:4px;text-align:center;">
+            <div style="font-size:11px;font-weight:600;color:#7a2d2d;margin-bottom:4px;" class="en">🔴 Peak Season</div>
+            <div style="font-size:11px;font-weight:600;color:#7a2d2d;margin-bottom:4px;" class="zh">🔴 高价期</div>
+            <div style="font-size:12px;color:#7a2d2d;">${priceAnalysis.peak||'—'}</div>
+          </div>
         </div>
-        <div>
-          <div class="flight-price-big">${fmt(best.price)}</div>
-          <div class="flight-price-note">${best.direct?'Direct':'Via '+best.transfers+' stop'} · ${best.airline||''} · ${best.date} · ${best.travelClass||'Economy'}</div>
-        </div>
-        <a href="${best.link}" target="_blank" class="flight-book-btn">
-          <span class="en">Search This Flight</span><span class="zh">搜索此航班</span>
+        ${priceAnalysis.yourDates?`<div style="margin-top:10px;padding:10px 14px;background:var(--paper);border-radius:4px;font-size:12px;color:var(--text-secondary);">
+          <span style="font-weight:500;color:var(--ink);" class="en">Your dates: </span>
+          <span style="font-weight:500;color:var(--ink);" class="zh">你的出行日期：</span>
+          ${priceAnalysis.yourDates}
+        </div>`:''}
+      </div>` : ''}
+
+      <!-- Search Links -->
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;line-height:1.6;" class="en">Search live prices across major platforms — prices update in real time:</p>
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;line-height:1.6;" class="zh">在各大平台搜索实时票价：</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <a href="${aviasalesUrl}" target="_blank" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--ink);border-radius:4px;text-decoration:none;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--white);">Aviasales</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.45);" class="en">500+ airlines worldwide</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.45);" class="zh">全球500+航空公司</div>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         </a>
-      </div>`:''}
-      <p style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;" class="en">Click any date to search — per person one-way reference fares in ${currency}:</p>
-      <p style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;" class="zh">点击任意日期搜索 — 单人单程参考票价（${currency}）：</p>
-      <div class="top5-grid">${fareRows}</div>
-      <p style="font-size:11px;color:var(--text-secondary);margin-top:10px;line-height:1.6;" class="en">Reference fares only — verify current price before booking.</p>
-      <p style="font-size:11px;color:var(--text-secondary);margin-top:10px;line-height:1.6;" class="zh">仅供参考，预订前请核实当前价格。</p>
+        <a href="${bookingUrl}" target="_blank" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--paper);border:1px solid var(--mist);border-radius:4px;text-decoration:none;transition:border-color 0.2s;" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--mist)'">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--ink);">Booking.com</div>
+            <div style="font-size:11px;color:var(--text-secondary);" class="en">Flights + hotels combined</div>
+            <div style="font-size:11px;color:var(--text-secondary);" class="zh">机票+酒店一起订</div>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+        <a href="${tripUrl}" target="_blank" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--paper);border:1px solid var(--mist);border-radius:4px;text-decoration:none;transition:border-color 0.2s;" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--mist)'">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--ink);">Trip.com</div>
+            <div style="font-size:11px;color:var(--text-secondary);" class="en">Best for Asia routes</div>
+            <div style="font-size:11px;color:var(--text-secondary);" class="zh">亚洲航线首选</div>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+        <a href="${googleUrl}" target="_blank" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--paper);border:1px solid var(--mist);border-radius:4px;text-decoration:none;transition:border-color 0.2s;" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--mist)'">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--ink);">Google Flights</div>
+            <div style="font-size:11px;color:var(--text-secondary);" class="en">Real-time price calendar</div>
+            <div style="font-size:11px;color:var(--text-secondary);" class="zh">实时价格日历</div>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+      </div>
+      <p style="font-size:11px;color:var(--text-secondary);margin-top:12px;line-height:1.6;" class="en">Prices vary by date, class and availability. Always verify before booking.</p>
+      <p style="font-size:11px;color:var(--text-secondary);margin-top:12px;line-height:1.6;" class="zh">价格因日期、舱位和座位供应而异，请在预订前核实。</p>
     </div>
   </div>`;
 }
@@ -483,6 +525,11 @@ function renderDays(days) {
           ${day.meals.dinner?`<div class="meal-item"><div class="meal-dot"></div><div class="meal-text"><span class="meal-label en">Dinner</span><span class="meal-label zh">晚餐</span>${day.meals.dinner}</div></div>`:''}
         </div>`:''}
         ${day.tips?`<div class="day-tip"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>${day.tips}</span></div>`:''}
+        ${day.events?`<div class="day-events">
+          <div class="day-events-title en">🎭 Local Events & Must-See Experiences</div>
+          <div class="day-events-title zh">🎭 当地活动与必看体验</div>
+          <div class="day-events-content">${day.events}</div>
+        </div>`:''}
       </div>
     </div>`).join('');
 
