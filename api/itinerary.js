@@ -74,50 +74,79 @@ export default async function handler(req, res) {
     ? 'Been once: skip obvious tourist spots, go deeper into local neighbourhoods and second-tier attractions.'
     : 'Multiple visits: avoid all tourist trails, focus on hyper-local experiences and hidden gems only.';
 
-  const prompt = `You are an expert travel planner. Create a detailed, warm, personalised travel itinerary in PLAIN TEXT using the exact section markers below. Do NOT output JSON. Do NOT use quotes around values.
+  const prompt = `You are an expert travel planner with deep local knowledge of every destination worldwide. Create a warm, personalised, practical travel itinerary in PLAIN TEXT using the exact section markers below. Do NOT output JSON. Do NOT use markdown.
 
 TRIP: ${origin} to ${destination} | ${departDate} to ${returnDate} | ${nights} nights
-TRAVELLERS: ${adults} adults${hasChildren ? `, ${children} children (${childAges})` : ''}${hasInfants ? `, ${infants} infants` : ''}${hasSeniors ? `, ${seniors} seniors (${seniorAges})` : ''} | Total: ${totalPax}
-BUDGET: ${budget} ${currency} | CLASS: ${travelClass} | ACCOMMODATION: ${accommodationLevel} ${accommodationType}
+TRAVELLERS: ${adults} adults${hasChildren ? `, ${children} children (ages: ${childAges})` : ''}${hasInfants ? `, ${infants} infants` : ''}${hasSeniors ? `, ${seniors} seniors (ages: ${seniorAges})` : ''} | Total: ${totalPax} people
+BUDGET: ${budget} ${currency} | CLASS: ${travelClass} | ACCOMMODATION: ${accommodationLevel} ${accommodationType} preferred
 STYLE: ${Array.isArray(travelStyle) ? travelStyle.join(', ') : travelStyle} | PACE: ${pace} | PURPOSE: ${purpose}
-DIETARY: ${dietary} | TRANSPORT: ${localTransport} | VISITED: ${hasVisited}
-${anchors && anchors.length > 0 ? `FIXED PLANS: ${anchors.map(a => `${a.date} ${a.city} (${a.type}) ${a.notes}`).join(' | ')}` : ''}
-${specialRequests ? `SPECIAL: ${specialRequests}` : ''}
+DIETARY: ${dietary} | LOCAL TRANSPORT: ${localTransport} | VISITED BEFORE: ${hasVisited}
+${anchors && anchors.length > 0 ? `FIXED COMMITMENTS (plan everything around these): ${anchors.map(a => `${a.date} in ${a.city} | type: ${a.type} | notes: ${a.notes} | nights: ${a.nights}`).join(' || ')}` : 'No fixed commitments'}
+${specialRequests ? `SPECIAL REQUESTS (high priority): ${specialRequests}` : ''}
+
 ${nearbyCitiesInstruction}
 VISITED GUIDANCE: ${visitedNote}
-CURRENCY: Always show prices in ${currency} (${currSym})
-${hasChildren ? 'FAMILY: Include child-friendly options for every activity and meal.' : ''}
-${hasSeniors ? 'SENIORS: Include accessible venues and comfortable pace.' : ''}
+CURRENCY: All prices in ${currency} (${currSym})
+${hasChildren ? `FAMILY NOTE: Include child-friendly options. Children ages: ${childAges}` : ''}
+${hasSeniors ? `SENIORS NOTE: Include accessible venues, comfortable pace, senior discounts` : ''}
 
-OUTPUT FORMAT — use these exact markers, one per line:
+FLIGHT & ARRIVAL INTELLIGENCE:
+Research the typical flight duration and most common departure/arrival times for ${origin} to ${destination}.
+For Day 1 (arrival day), provide FOUR arrival scenarios. This is very important — travellers do not know their exact arrival time when planning.
+Format Day 1 with these four arrival scenarios clearly labelled.
+
+TRAVEL DAY RULES:
+- Day 1 is ARRIVAL DAY: traveller has been flying. Never plan full sightseeing. Always gentle and practical.
+- Any day involving city transfer (flights or long drives between anchor points): account for transit time first, only plan activities after accounting for travel.
+- Last day (${returnDate}): morning only, allow 3 hours for international airport check-in.
+- When anchors involve travel between cities, note the transport: flight/train/drive, duration, cost in ${currency}.
+
+OUTPUT FORMAT — use these EXACT markers, one per line, no extra punctuation:
 
 ###SUMMARY###
-Write 3-4 warm sentences about what makes this trip special for this group.
+3-4 sentences covering ALL cities visited, key highlights, and what makes this trip special for this specific group.
 
 ###DAY###
 NUMBER: 1
 DATE: ${departDate}
-CITY: [city name]
-TITLE: [evocative day title]
-MORNING: [2-3 sentences — specific venues, insider tips, what to see/do]
-AFTERNOON: [2-3 sentences — specific venues, insider tips]
-EVENING: [2-3 sentences — specific venues, atmosphere, what to do]
-BREAKFAST: Option 1: [Restaurant name] ([area]) — [description, price ${currSym}]. Option 2: [Restaurant name] — [description]
-LUNCH: Option 1: [Restaurant name] ([area]) — [description]. Option 2: [Restaurant name] — [description]
-DINNER: Option 1: [Restaurant name] ([area]) — [description]. Option 2: [Restaurant name] — [description]
-TIPS: [2-3 specific tips: transport cards, booking advice, timing, money-saving]
+CITY: ${destination.replace(/\s*\([A-Z]+\)/, '').trim().split(',')[0].trim()}
+TITLE: Arrival Day — Welcome to [City]
+MORNING: [2 sentences for scenario: if arriving before noon — suggest 1 gentle activity near hotel after check-in]
+AFTERNOON: [2 sentences for scenario: if arriving 12:00-15:00 — suggest 1 easy nearby activity, light lunch]
+EVENING: [2 sentences for scenario: if arriving 15:00-18:00 — suggest short neighbourhood walk + nearby dinner]
+LATE_ARRIVAL: [2 sentences for scenario: if arriving after 18:00 — hotel check-in, find nearby dinner, rest and recover]
+TYPICAL_ARRIVAL: [1 sentence stating the most common arrival time window for ${origin} to ${destination} flights, e.g. "Most flights from Melbourne to Los Angeles arrive between 06:00-10:00 local time after a 15-hour overnight journey."]
+BREAKFAST: Option 1: [near hotel, easy, no reservation needed] — [description]. Option 2: [hotel breakfast or nearby cafe]
+LUNCH: Option 1: [casual, walkable from hotel] — [description]. Option 2: [quick easy option]
+DINNER: Option 1: [relaxed, nearby, no late night] — [description]. Option 2: [hotel restaurant or delivery option]
+TIPS: Tip 1: [jet lag recovery advice specific to this timezone change]. Tip 2: [how to get from airport to hotel with cost in ${currency}]
+EVENTS: [2-3 must-see local events, sports, concerts or festivals during the trip dates. Format: Event name (dates) — description — booking link]
 COST: [estimated daily cost per person in ${currency}, number only]
-EVENTS: [For Day 1 ONLY: list 2-4 must-see local events, sports games, concerts, shows, or festivals happening during the trip dates in this city. Format: Event name (date/timing) — brief description — where to book. If none known, list 2 iconic regular experiences like NBA games, Broadway shows, local festivals]
 
-[Repeat ###DAY### section for each day of the trip — EVENTS field only needed for Day 1]
+[Repeat ###DAY### for each remaining day — NOT Day 1 format, use standard format below]
+
+STANDARD DAY FORMAT (Day 2 onwards):
+###DAY###
+NUMBER: [day number]
+DATE: [YYYY-MM-DD]
+CITY: [city name]
+TITLE: [evocative specific day title]
+MORNING: [2 sentences — specific venue, what to do, insider tip]
+AFTERNOON: [2 sentences — specific venue, what to do]
+EVENING: [2 sentences — atmosphere, what to do, where to go]
+BREAKFAST: Option 1: [Name] ([area]) — [description, approx price ${currSym}/person]. Option 2: [Name] — [description]
+LUNCH: Option 1: [Name] ([area]) — [description]. Option 2: [Name] — [description]
+DINNER: Option 1: [Name] ([area]) — [description]. Option 2: [Name] — [description]
+TIPS: Tip 1: [transport or booking tip]. Tip 2: [money-saving or timing tip]
+COST: [number only]
 
 ###HOTELS###
 CITY: [city name]
 NAME: [exact hotel name]
 LEVEL: ${accommodationLevel}
-PRICE: [price per night in ${currency}, number only]
-LOCATION: [neighbourhood — X min walk to main attraction]
-WHY: [2 sentences why this suits this specific group]
+PRICE: [number only, per night in ${currency}]
+LOCATION: [neighbourhood — X min walk to key attraction]
+WHY: [2 sentences specific to this group's needs and purpose]
 ---
 NAME: [second hotel]
 PRICE: [number only]
@@ -130,18 +159,19 @@ LOCATION: [neighbourhood]
 WHY: [2 sentences]
 
 ###FLIGHTPRICE###
-YOUR_DATES: [Describe whether the travel dates fall in low/typical/peak season and why in 1-2 sentences]
-LOW: [Describe what months/periods have cheapest flights on this route and why — school holidays, off-peak season etc]
-TYPICAL: [Describe normal/shoulder season periods for this route]
-PEAK: [Describe most expensive periods — school holidays, major events, festivals, sports seasons that affect this route. Mention any major events like World Cup, Olympics, major concerts if relevant]
+YOUR_DATES: [1-2 sentences: are the travel dates low/typical/peak for ${origin} to ${destination} and why]
+LOW: [which months/periods have cheapest fares on this route and why — school holidays avoided, off-peak etc]
+TYPICAL: [normal pricing periods for this route]
+PEAK: [most expensive periods — school holidays both countries, major events, festivals. Mention Olympics/World Cup/major concerts if relevant to travel window]
+CALENDAR: [generate 30 days starting 15 days before ${departDate}. Format each day as YYYY-MM-DD:level where level is low/typical/peak. Comma separated. Base analysis on: origin country school holidays, destination country school holidays, public holidays both countries, major global events, seasonal demand. Example: 2026-05-30:low,2026-05-31:low,2026-06-01:typical,...]
 
 ###FOOD###
-[Dish name] at [Restaurant] ([Neighbourhood]) — [one sentence why unmissable]
-[Repeat for 6-8 items]
+[Name] at [Restaurant] ([Neighbourhood]) — [one sentence why unmissable]
+[5 items total]
 
 ###TIPS###
-[One specific, actionable tip per line — transport apps, payment, cultural etiquette, booking, safety]
-[Write 8-10 tips, one per line]
+[One specific actionable tip per line]
+[6 tips total — transport apps, payment, cultural etiquette, booking, safety, family-specific if applicable]
 
 ###BUDGET###
 FLIGHTS: [number only in ${currency}]
@@ -231,11 +261,20 @@ TOTAL: [number only]`;
 
 function parseFlightPrice(text) {
   if (!text) return null;
+  const calendarRaw = getField(text, 'CALENDAR');
+  const calendar = {};
+  if (calendarRaw) {
+    calendarRaw.split(',').forEach(entry => {
+      const [date, level] = entry.trim().split(':');
+      if (date && level) calendar[date.trim()] = level.trim().toLowerCase();
+    });
+  }
   return {
     yourDates: getField(text, 'YOUR_DATES'),
     low:       getField(text, 'LOW'),
     typical:   getField(text, 'TYPICAL'),
     peak:      getField(text, 'PEAK'),
+    calendar,
   };
 }
 
@@ -319,18 +358,23 @@ function parseDays(dayBlocks) {
       lunch:     getField(block, 'LUNCH'),
       dinner:    getField(block, 'DINNER'),
     };
+    const dayNum = parseInt(getField(block, 'NUMBER')) || (i + 1);
+    const isArrivalDay = dayNum === 1;
     return {
-      day:       parseInt(getField(block, 'NUMBER')) || (i + 1),
-      date:      getField(block, 'DATE'),
-      city:      getField(block, 'CITY'),
-      title:     getField(block, 'TITLE'),
-      morning:   getField(block, 'MORNING'),
-      afternoon: getField(block, 'AFTERNOON'),
-      evening:   getField(block, 'EVENING'),
+      day:            dayNum,
+      date:           getField(block, 'DATE'),
+      city:           getField(block, 'CITY'),
+      title:          getField(block, 'TITLE'),
+      morning:        getField(block, 'MORNING'),
+      afternoon:      getField(block, 'AFTERNOON'),
+      evening:        getField(block, 'EVENING'),
+      lateArrival:    isArrivalDay ? getField(block, 'LATE_ARRIVAL') : '',
+      typicalArrival: isArrivalDay ? getField(block, 'TYPICAL_ARRIVAL') : '',
+      isArrivalDay,
       meals,
-      tips:      getField(block, 'TIPS'),
-      events:    getField(block, 'EVENTS'),
-      estimatedCost: parseFloat(getField(block, 'COST')) || 0,
+      tips:           getField(block, 'TIPS'),
+      events:         getField(block, 'EVENTS'),
+      estimatedCost:  parseFloat(getField(block, 'COST')) || 0,
     };
   }).filter(d => d.morning || d.title);
 }
