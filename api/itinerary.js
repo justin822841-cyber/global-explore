@@ -240,7 +240,7 @@ YOUR_DATES: [1-2 sentences: are the travel dates low/typical/peak for ${origin} 
 LOW: [which months/periods have cheapest fares on this route and why]
 TYPICAL: [normal pricing periods for this route]
 PEAK: [most expensive periods — include: school holiday dates for origin and destination countries, major global events like World Cup/Olympics near the travel dates, destination public holidays. Be specific about dates and events you know about]
-CALENDAR: [generate 30 days starting 15 days before ${departDate}. Format: YYYY-MM-DD:level. Base on school holidays, public holidays both countries, major known events, and seasonal demand patterns]
+CALENDAR: 2026-06-01:typical,2026-06-02:low,2026-06-03:low,... (EXACTLY this format — 30 comma-separated YYYY-MM-DD:level pairs on ONE line, NO spaces, NO line breaks, NO extra text. level must be one of: low, typical, peak. Start 15 days before ${departDate}. Example of correct format: 2026-05-30:low,2026-05-31:low,2026-06-01:typical,2026-06-02:peak,2026-06-03:typical)
 
 ###FOOD###
 [Name] at [Restaurant] ([Neighbourhood]) — [one sentence why unmissable]
@@ -348,10 +348,16 @@ function parseFlightPrice(text) {
   const calendarRaw = getField(text, 'CALENDAR');
   const calendar = {};
   if (calendarRaw) {
-    calendarRaw.split(',').forEach(entry => {
-      const [date, level] = entry.trim().split(':');
-      if (date && level) calendar[date.trim()] = level.trim().toLowerCase();
-    });
+    // Extract all YYYY-MM-DD:level patterns from anywhere in the string
+    const pattern = /(\d{4}-\d{2}-\d{2})\s*[:]\s*(low|typical|peak)/gi;
+    let match;
+    while ((match = pattern.exec(calendarRaw)) !== null) {
+      const date = match[1].trim();
+      const level = match[2].trim().toLowerCase();
+      if (['low','typical','peak'].includes(level)) {
+        calendar[date] = level;
+      }
+    }
   }
   return {
     yourDates: getField(text, 'YOUR_DATES'),
@@ -362,7 +368,7 @@ function parseFlightPrice(text) {
   };
 }
 
-function parsePlainText(text, affiliates, localTransport, anchors, currency, lang) {
+function parsePlainText(text, affiliates, localTransport, anchors, currency) {
   const sections = splitSections(text);
 
   return {
