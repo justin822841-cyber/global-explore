@@ -350,7 +350,7 @@ function parseFlightPrice(text) {
   };
 }
 
-function parsePlainText(text, affiliates, localTransport, anchors, currency) {
+function parsePlainText(text, affiliates, localTransport, anchors, currency, lang) {
   const sections = splitSections(text);
 
   return {
