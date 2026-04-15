@@ -185,6 +185,43 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);}
 .day-events{padding:14px 20px;background:rgba(201,168,76,0.04);border-top:1px solid rgba(201,168,76,0.15);}
 .day-events-title{font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--gold);font-weight:500;margin-bottom:8px;}
 .day-events-content{font-size:13px;color:var(--text-secondary);line-height:1.75;white-space:pre-line;}
+
+/* ARRIVAL DAY SCENARIOS */
+.arrival-scenarios{background:var(--ink);border-radius:4px;overflow:hidden;margin-bottom:12px;}
+.arrival-header{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.08);}
+.arrival-header-title{font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);font-weight:500;}
+.arrival-note{font-size:12px;color:rgba(255,255,255,0.45);margin-top:4px;line-height:1.5;}
+.arrival-tabs{display:flex;border-bottom:1px solid rgba(255,255,255,0.08);}
+.arrival-tab{flex:1;padding:10px 8px;text-align:center;font-size:11px;cursor:pointer;color:rgba(255,255,255,0.4);border-bottom:2px solid transparent;transition:all 0.2s;letter-spacing:0.03em;}
+.arrival-tab.active{color:var(--gold);border-bottom-color:var(--gold);}
+.arrival-panels{padding:14px 16px;}
+.arrival-panel{display:none;font-size:13px;color:rgba(255,255,255,0.7);line-height:1.75;}
+.arrival-panel.active{display:block;}
+.arrival-panel-label{font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:8px;font-weight:500;}
+
+/* FARE CALENDAR */
+.fare-calendar-wrap{margin-bottom:20px;}
+.fare-calendar-title{font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-secondary);font-weight:500;margin-bottom:12px;}
+.fare-calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+.fare-cal-header{text-align:center;font-size:10px;color:var(--text-secondary);padding:4px 0;font-weight:500;letter-spacing:0.05em;}
+.fare-cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:3px;cursor:default;font-size:10px;position:relative;}
+.fare-cal-day.low{background:#f0faf0;color:#2d7a2d;border:1px solid #b3e6b3;}
+.fare-cal-day.typical{background:#fffbf0;color:#7a5a2d;border:1px solid #e6d5b3;}
+.fare-cal-day.peak{background:#fff0f0;color:#7a2d2d;border:1px solid #e6b3b3;}
+.fare-cal-day.departure{outline:2px solid var(--gold);outline-offset:1px;font-weight:700;}
+.fare-cal-day.empty{background:transparent;border:none;}
+.fare-cal-num{font-size:11px;font-weight:600;line-height:1;}
+.fare-cal-dot{width:5px;height:5px;border-radius:50%;margin-top:2px;}
+.fare-cal-day.low .fare-cal-dot{background:#2d7a2d;}
+.fare-cal-day.typical .fare-cal-dot{background:#7a5a2d;}
+.fare-cal-day.peak .fare-cal-dot{background:#7a2d2d;}
+.fare-legend{display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;}
+.fare-legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-secondary);}
+.fare-legend-dot{width:10px;height:10px;border-radius:2px;}
+.fare-legend-dot.low{background:#b3e6b3;border:1px solid #2d7a2d;}
+.fare-legend-dot.typical{background:#e6d5b3;border:1px solid #7a5a2d;}
+.fare-legend-dot.peak{background:#e6b3b3;border:1px solid #7a2d2d;}
+
 </style>
 </head>
 <body class="lang-en">
@@ -280,6 +317,55 @@ function showError() {
       </a>
     </div>`;
 }
+
+function renderFareCalendar(calendar, departDate) {
+  if (!calendar || Object.keys(calendar).length === 0) return '';
+
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const dates = Object.keys(calendar).sort();
+  if (dates.length === 0) return '';
+
+  const firstDate = new Date(dates[0]);
+  const startDay  = firstDate.getDay(); // 0=Sun
+
+  // Build calendar grid
+  let cells = '';
+  // Day headers
+  days.forEach(d => { cells += `<div class="fare-cal-header">${d}</div>`; });
+  // Empty cells before first date
+  for (let i = 0; i < startDay; i++) {
+    cells += `<div class="fare-cal-day empty"></div>`;
+  }
+  // Date cells
+  dates.forEach(dateStr => {
+    const level = calendar[dateStr] || 'typical';
+    const d = new Date(dateStr);
+    const dayNum = d.getDate();
+    const isDep = dateStr === departDate;
+    cells += `<div class="fare-cal-day ${level}${isDep?' departure':''}" title="${isDep?'Your departure — ':''} ${level} season">
+      <div class="fare-cal-num">${dayNum}${isDep?'★':''}</div>
+      <div class="fare-cal-dot"></div>
+    </div>`;
+  });
+
+  // Month label
+  const firstD = new Date(dates[0]);
+  const lastD  = new Date(dates[dates.length-1]);
+  const monthLabel = firstD.toLocaleDateString('en',{month:'short',year:'numeric'}) +
+    (firstD.getMonth() !== lastD.getMonth() ? ' — ' + lastD.toLocaleDateString('en',{month:'short',year:'numeric'}) : '');
+
+  return `<div class="fare-calendar-wrap">
+    <div class="fare-calendar-title en">Fare Calendar — ${monthLabel} <span style="color:var(--gold)">★ Your departure</span></div>
+    <div class="fare-calendar-title zh">票价日历 — ${monthLabel} <span style="color:var(--gold)">★ 你的出发日</span></div>
+    <div class="fare-calendar-grid">${cells}</div>
+    <div class="fare-legend">
+      <div class="fare-legend-item"><div class="fare-legend-dot low"></div><span class="en">Low Season</span><span class="zh">低价期</span></div>
+      <div class="fare-legend-item"><div class="fare-legend-dot typical"></div><span class="en">Typical</span><span class="zh">普通期</span></div>
+      <div class="fare-legend-item"><div class="fare-legend-dot peak"></div><span class="en">Peak Season</span><span class="zh">高价期</span></div>
+    </div>
+  </div>`;
+}
+
 
 function render() {
   if (!itinerary) return;
@@ -412,30 +498,30 @@ function renderFlights(origin, dest, dateFrom, dateTo, adults, formData={}) {
       </div>
 
       ${priceAnalysis ? `
-      <!-- AI Price Analysis -->
+      <!-- Fare Calendar -->
+      ${renderFareCalendar(priceAnalysis.calendar || {}, dateFrom)}
+
+      <!-- Price Period Explanation -->
       <div style="margin-bottom:20px;">
-        <div style="font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-secondary);font-weight:500;margin-bottom:12px;" class="en">Price Period Analysis</div>
-        <div style="font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-secondary);font-weight:500;margin-bottom:12px;" class="zh">价格区间分析</div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
-          <div style="padding:12px;background:#f0faf0;border:1px solid #b3e6b3;border-radius:4px;text-align:center;">
-            <div style="font-size:11px;font-weight:600;color:#2d7a2d;margin-bottom:4px;" class="en">🟢 Low Season</div>
-            <div style="font-size:11px;font-weight:600;color:#2d7a2d;margin-bottom:4px;" class="zh">🟢 低价期</div>
-            <div style="font-size:12px;color:#2d7a2d;">${priceAnalysis.low||'—'}</div>
+        <div style="font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-secondary);font-weight:500;margin-bottom:12px;" class="en">What Affects Prices on This Route</div>
+        <div style="font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-secondary);font-weight:500;margin-bottom:12px;" class="zh">影响此航线价格的因素</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="padding:12px 14px;background:#f0faf0;border-left:3px solid #2d7a2d;border-radius:0 4px 4px 0;">
+            <div style="font-size:11px;font-weight:600;color:#2d7a2d;margin-bottom:4px;">🟢 Low Season</div>
+            <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;">${priceAnalysis.low||'—'}</div>
           </div>
-          <div style="padding:12px;background:#fffbf0;border:1px solid #e6d5b3;border-radius:4px;text-align:center;">
-            <div style="font-size:11px;font-weight:600;color:#7a5a2d;margin-bottom:4px;" class="en">🟡 Typical</div>
-            <div style="font-size:11px;font-weight:600;color:#7a5a2d;margin-bottom:4px;" class="zh">🟡 普通期</div>
-            <div style="font-size:12px;color:#7a5a2d;">${priceAnalysis.typical||'—'}</div>
+          <div style="padding:12px 14px;background:#fffbf0;border-left:3px solid #c9a84c;border-radius:0 4px 4px 0;">
+            <div style="font-size:11px;font-weight:600;color:#7a5a2d;margin-bottom:4px;">🟡 Typical Season</div>
+            <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;">${priceAnalysis.typical||'—'}</div>
           </div>
-          <div style="padding:12px;background:#fff0f0;border:1px solid #e6b3b3;border-radius:4px;text-align:center;">
-            <div style="font-size:11px;font-weight:600;color:#7a2d2d;margin-bottom:4px;" class="en">🔴 Peak Season</div>
-            <div style="font-size:11px;font-weight:600;color:#7a2d2d;margin-bottom:4px;" class="zh">🔴 高价期</div>
-            <div style="font-size:12px;color:#7a2d2d;">${priceAnalysis.peak||'—'}</div>
+          <div style="padding:12px 14px;background:#fff0f0;border-left:3px solid #e05555;border-radius:0 4px 4px 0;">
+            <div style="font-size:11px;font-weight:600;color:#7a2d2d;margin-bottom:4px;">🔴 Peak Season</div>
+            <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;">${priceAnalysis.peak||'—'}</div>
           </div>
         </div>
-        ${priceAnalysis.yourDates?`<div style="margin-top:10px;padding:10px 14px;background:var(--paper);border-radius:4px;font-size:12px;color:var(--text-secondary);">
-          <span style="font-weight:500;color:var(--ink);" class="en">Your dates: </span>
-          <span style="font-weight:500;color:var(--ink);" class="zh">你的出行日期：</span>
+        ${priceAnalysis.yourDates?`<div style="margin-top:10px;padding:10px 14px;background:var(--paper);border:1px solid var(--mist);border-radius:4px;font-size:12px;color:var(--text-secondary);line-height:1.6;">
+          <span style="font-weight:500;color:var(--ink);" class="en">📅 Your dates: </span>
+          <span style="font-weight:500;color:var(--ink);" class="zh">📅 你的出行日期：</span>
           ${priceAnalysis.yourDates}
         </div>`:''}
       </div>` : ''}
@@ -507,7 +593,72 @@ function renderFlights(origin, dest, dateFrom, dateTo, adults, formData={}) {
 }
 
 function renderDays(days) {
-  const cards = days.map((day,i) => `
+  const cards = days.map((day,i) => {
+    const arrivalContent = day.isArrivalDay ? `
+      <div class="arrival-scenarios">
+        <div class="arrival-header">
+          <div class="arrival-header-title en">✈ Arrival Day — Choose Your Scenario</div>
+          <div class="arrival-header-title zh">✈ 抵达日 — 根据你的航班选择安排</div>
+          ${day.typicalArrival ? `<div class="arrival-note">${day.typicalArrival}</div>` : ''}
+        </div>
+        <div class="arrival-tabs">
+          <div class="arrival-tab active en" onclick="switchArrival(${i},'morning')">Before Noon</div>
+          <div class="arrival-tab active zh" onclick="switchArrival(${i},'morning')">中午前到</div>
+          <div class="arrival-tab en" onclick="switchArrival(${i},'afternoon')">12:00–15:00</div>
+          <div class="arrival-tab zh" onclick="switchArrival(${i},'afternoon')">中午至下午</div>
+          <div class="arrival-tab en" onclick="switchArrival(${i},'evening')">15:00–18:00</div>
+          <div class="arrival-tab zh" onclick="switchArrival(${i},'evening')">下午</div>
+          <div class="arrival-tab en" onclick="switchArrival(${i},'late')">After 18:00</div>
+          <div class="arrival-tab zh" onclick="switchArrival(${i},'late')">傍晚后</div>
+        </div>
+        <div class="arrival-panels" id="arrival-panels-${i}">
+          <div class="arrival-panel active" data-tab="morning">
+            <div class="arrival-panel-label en">Morning Arrival (before noon)</div>
+            <div class="arrival-panel-label zh">早上到达（中午前）</div>
+            <p>${day.morning||''}</p>
+          </div>
+          <div class="arrival-panel" data-tab="afternoon">
+            <div class="arrival-panel-label en">Midday Arrival (12:00–15:00)</div>
+            <div class="arrival-panel-label zh">中午到达（12:00–15:00）</div>
+            <p>${day.afternoon||''}</p>
+          </div>
+          <div class="arrival-panel" data-tab="evening">
+            <div class="arrival-panel-label en">Afternoon Arrival (15:00–18:00)</div>
+            <div class="arrival-panel-label zh">下午到达（15:00–18:00）</div>
+            <p>${day.evening||''}</p>
+          </div>
+          <div class="arrival-panel" data-tab="late">
+            <div class="arrival-panel-label en">Evening Arrival (after 18:00)</div>
+            <div class="arrival-panel-label zh">傍晚到达（18:00后）</div>
+            <p>${day.lateArrival||''}</p>
+          </div>
+        </div>
+      </div>` : '';
+
+    const standardContent = !day.isArrivalDay ? `
+      <div class="time-slot">
+        <div class="time-label">
+          <div class="time-icon morning"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f0c040" stroke-width="1.5"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/></svg></div>
+          <div class="time-tag en">Morning</div><div class="time-tag zh">上午</div>
+        </div>
+        <div class="time-content"><p>${day.morning||''}</p></div>
+      </div>
+      <div class="time-slot">
+        <div class="time-label">
+          <div class="time-icon afternoon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#c9a84c" stroke-width="1.5"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg></div>
+          <div class="time-tag en">Afternoon</div><div class="time-tag zh">下午</div>
+        </div>
+        <div class="time-content"><p>${day.afternoon||''}</p></div>
+      </div>
+      <div class="time-slot">
+        <div class="time-label">
+          <div class="time-icon evening"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8080c0" stroke-width="1.5"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></div>
+          <div class="time-tag en">Evening</div><div class="time-tag zh">晚上</div>
+        </div>
+        <div class="time-content"><p>${day.evening||''}</p></div>
+      </div>` : '';
+
+    return `
     <div class="day-card" id="day-${i}">
       <div class="day-header" onclick="toggleDay(${i})">
         <div class="day-num-badge">${day.day}</div>
@@ -519,27 +670,8 @@ function renderDays(days) {
         <svg class="day-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
       <div class="day-body">
-        <div class="time-slot">
-          <div class="time-label">
-            <div class="time-icon morning"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f0c040" stroke-width="1.5"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/></svg></div>
-            <div class="time-tag en">Morning</div><div class="time-tag zh">上午</div>
-          </div>
-          <div class="time-content"><p>${day.morning||''}</p></div>
-        </div>
-        <div class="time-slot">
-          <div class="time-label">
-            <div class="time-icon afternoon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#c9a84c" stroke-width="1.5"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg></div>
-            <div class="time-tag en">Afternoon</div><div class="time-tag zh">下午</div>
-          </div>
-          <div class="time-content"><p>${day.afternoon||''}</p></div>
-        </div>
-        <div class="time-slot">
-          <div class="time-label">
-            <div class="time-icon evening"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8080c0" stroke-width="1.5"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></div>
-            <div class="time-tag en">Evening</div><div class="time-tag zh">晚上</div>
-          </div>
-          <div class="time-content"><p>${day.evening||''}</p></div>
-        </div>
+        ${arrivalContent}
+        ${standardContent}
         ${day.meals?`<div class="meals-row">
           <div class="meals-title en">Dining Recommendations</div>
           <div class="meals-title zh">餐饮推荐</div>
@@ -554,7 +686,8 @@ function renderDays(days) {
           <div class="day-events-content">${day.events}</div>
         </div>`:''}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   return `<div class="section-card">
     <div class="section-card-header">
@@ -732,6 +865,21 @@ function fmtRange(from, to, l) {
 }
 
 function toggleDay(i){const c=document.getElementById('day-'+i);if(c)c.classList.toggle('open');}
+
+function switchArrival(dayIdx, tab) {
+  const panels = document.getElementById('arrival-panels-' + dayIdx);
+  if (!panels) return;
+  // Update tabs
+  const card = document.getElementById('day-' + dayIdx);
+  card.querySelectorAll('.arrival-tab').forEach((t,i) => {
+    const tabs = ['morning','afternoon','evening','late'];
+    t.classList.toggle('active', tabs[i % 4] === tab);
+  });
+  // Update panels
+  panels.querySelectorAll('.arrival-panel').forEach(p => {
+    p.classList.toggle('active', p.dataset.tab === tab);
+  });
+}
 function toggleAllDays(){const all=document.querySelectorAll('.day-card');const anyOpen=Array.from(all).some(c=>c.classList.contains('open'));all.forEach(c=>anyOpen?c.classList.remove('open'):c.classList.add('open'));}
 function animateBars(){document.querySelectorAll('.budget-bar[data-w]').forEach(b=>{setTimeout(()=>{b.style.width=b.dataset.w;},200);});}
 
