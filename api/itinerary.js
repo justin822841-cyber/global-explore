@@ -149,24 +149,49 @@ BREAKFAST: Option 1: [near hotel, easy, no reservation needed] — [description]
 LUNCH: Option 1: [casual, walkable from hotel] — [description]. Option 2: [quick easy option]
 DINNER: Option 1: [relaxed, nearby, no late night] — [description]. Option 2: [hotel restaurant or delivery option]
 TIPS: Tip 1: [jet lag recovery advice specific to this timezone change]. Tip 2: [how to get from airport to hotel with cost in ${currency}]
-EVENTS: [Use web search to find 2-3 REAL events happening in ${destination.replace(/\s*\([A-Z]+\)/, '').trim()} during ${departDate} to ${returnDate}. Include actual event names, real dates, and booking websites. If no major events found, list 2 iconic regular experiences. Format: Event name (specific dates) — description — website]
+EVENTS: [List 2-3 notable events, sports seasons, festivals or experiences in ${destination.replace(/\s*\([A-Z]+\)/, '').trim()} during ${departDate} to ${returnDate}. Include any major known events (World Cup, Olympics, major festivals) plus regular iconic experiences. Format: Event name (dates if known) — description — booking website]
 COST: [estimated daily cost per person in ${currency}, number only]
 
 [Repeat ###DAY### for each remaining day — NOT Day 1 format, use standard format below]
 
 STANDARD DAY FORMAT (Day 2 onwards):
+${nights <= 14 ? `
+CONTENT DEPTH: FULL — 2 sentences per time slot, 2 meal options per meal, 2 tips per day
+` : nights <= 20 ? `
+CONTENT DEPTH: STANDARD — 2 sentences per time slot, 1 meal option per meal, 1 tip per day
+` : nights <= 30 ? `
+CONTENT DEPTH: COMPACT — 1 sentence per time slot, 1 meal option per meal, 1 tip per day
+` : `
+CONTENT DEPTH: BRIEF — 1 short sentence per time slot, breakfast and dinner only (skip lunch), 1 tip per day
+`}
+
 ###DAY###
 NUMBER: [day number]
 DATE: [YYYY-MM-DD]
 CITY: [city name]
 TITLE: [evocative specific day title]
-MORNING: [2 sentences — specific venue, what to do, insider tip]
+${nights <= 14 ? `MORNING: [2 sentences — specific venue, what to do, insider tip]
 AFTERNOON: [2 sentences — specific venue, what to do]
 EVENING: [2 sentences — atmosphere, what to do, where to go]
-BREAKFAST: Option 1: [Name] ([area]) — [description, approx price ${currSym}/person]. Option 2: [Name] — [description]
+BREAKFAST: Option 1: [Name] ([area]) — [description, price ${currSym}/person]. Option 2: [Name] — [description]
 LUNCH: Option 1: [Name] ([area]) — [description]. Option 2: [Name] — [description]
 DINNER: Option 1: [Name] ([area]) — [description]. Option 2: [Name] — [description]
-TIPS: Tip 1: [transport or booking tip]. Tip 2: [money-saving or timing tip]
+TIPS: Tip 1: [transport or booking tip]. Tip 2: [money-saving or timing tip]` : nights <= 20 ? `MORNING: [2 sentences — specific venue and what to do]
+AFTERNOON: [2 sentences — specific venue and what to do]
+EVENING: [2 sentences — where to go and what to do]
+BREAKFAST: [Name] ([area]) — [description, price ${currSym}/person]
+LUNCH: [Name] ([area]) — [description]
+DINNER: [Name] ([area]) — [description]
+TIPS: [1 practical tip]` : nights <= 30 ? `MORNING: [1 sentence — specific venue and activity]
+AFTERNOON: [1 sentence — specific venue and activity]
+EVENING: [1 sentence — dinner area and atmosphere]
+BREAKFAST: [Name] ([area]) — [brief description]
+DINNER: [Name] ([area]) — [brief description]
+TIPS: [1 short tip]` : `MORNING: [1 short sentence covering morning activity]
+AFTERNOON: [1 short sentence covering afternoon]
+EVENING: [1 short sentence covering evening and dinner]
+BREAKFAST: [Name] — [one word description]
+TIPS: [1 short tip]`}
 COST: [number only]
 
 ###HOTELS###
@@ -188,11 +213,11 @@ LOCATION: [neighbourhood]
 WHY: [2 sentences]
 
 ###FLIGHTPRICE###
-YOUR_DATES: [1-2 sentences: are the travel dates low/typical/peak for ${origin} to ${destination} and why. Use web search to check for any major events during ${departDate} to ${returnDate} that affect prices]
+YOUR_DATES: [1-2 sentences: are the travel dates low/typical/peak for ${origin} to ${destination} and why, including any known major events during this period]
 LOW: [which months/periods have cheapest fares on this route and why]
 TYPICAL: [normal pricing periods for this route]
-PEAK: [most expensive periods — use web search to find: (1) school holiday dates for ${origin.match(/\(([A-Z]{3})\)/)?.[1]||origin} country in ${new Date(departDate).getFullYear()}, (2) major global events like World Cup/Olympics/major concerts near ${departDate} to ${returnDate}, (3) destination public holidays. List specific events and dates found]
-CALENDAR: [generate 30 days starting 15 days before ${departDate}. Format: YYYY-MM-DD:level. Base on real school holidays, public holidays, and major events found via web search]
+PEAK: [most expensive periods — include: school holiday dates for origin and destination countries, major global events like World Cup/Olympics near the travel dates, destination public holidays. Be specific about dates and events you know about]
+CALENDAR: [generate 30 days starting 15 days before ${departDate}. Format: YYYY-MM-DD:level. Base on school holidays, public holidays both countries, major known events, and seasonal demand patterns]
 
 ###FOOD###
 [Name] at [Restaurant] ([Neighbourhood]) — [one sentence why unmissable]
@@ -223,12 +248,7 @@ TOTAL: [sum of all above, must be higher for more people — ${totalPax} people 
         model: 'claude-sonnet-4-20250514',
         max_tokens: 10000,
         stream: true,
-        tools: [
-          {
-            type: 'web_search_20250305',
-            name: 'web_search'
-          }
-        ],
+
         messages: [{ role: 'user', content: prompt }]
       })
     });
