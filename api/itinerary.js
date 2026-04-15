@@ -96,15 +96,39 @@ Research the typical flight duration and most common departure/arrival times for
 For Day 1 (arrival day), provide FOUR arrival scenarios. This is very important — travellers do not know their exact arrival time when planning.
 Format Day 1 with these four arrival scenarios clearly labelled.
 
-TRAVEL DAY RULES:
-- Day 1 is ARRIVAL DAY: traveller has been flying. Never plan full sightseeing. Always gentle and practical.
-- Any day involving city transfer (flights or long drives between anchor points): account for transit time first, only plan activities after accounting for travel.
-- Last day (${returnDate}): morning only, allow 3 hours for international airport check-in.
-- When anchors involve travel between cities, note the transport: flight/train/drive, duration, cost in ${currency}.
+TRAVEL DAY RULES — follow these precisely:
+
+1. DAY 1 (ARRIVAL DAY from ${origin}):
+   Research typical ${origin} to ${destination} flight duration and common arrival times.
+   Provide 4 arrival scenarios (morning/midday/afternoon/evening) as instructed in the format below.
+   Never plan full sightseeing on arrival day.
+
+2. CITY TRANSFER DAYS (any day travelling between cities mid-trip):
+   When the itinerary moves from one city to another (e.g. LA to Houston, or any anchor point requiring travel):
+   - MORNING of that day: describe checking out of hotel, transport to airport/station, and flight/train details
+     Example: "Check out by 10:00, rideshare to LAX (45 min, A$55). Fly [City A] to [City B] — approx [X] hours flight, departs around [typical time]. Allow 2 hours for domestic check-in or 3 hours for international."
+   - AFTERNOON/EVENING: plan activities only AFTER accounting for arrival time in the new city
+     If flight takes 3+ hours, only plan gentle activities for the remainder of the day
+   - Always state: departure city, transport method, journey time, estimated cost in ${currency}, arrival city
+   - Never plan a full day of sightseeing on a transfer day
+
+3. LAST DAY (${returnDate}):
+   - MORNING: gentle final activity near hotel, breakfast, pack and check out
+   - AFTERNOON: transfer to airport — allow 3 hours before international departure
+   - State airport transfer cost and time
+   - EVENING: on the plane
+
+4. ANCHOR POINT TRAVEL DAYS:
+   For each anchor in the itinerary that requires travel from the previous city:
+   - The day of arrival at the anchor city must follow rule 2 above
+   - Account for check-in time at anchor hotel
+   - Only schedule anchor commitment AFTER arrival and check-in if timing allows
 
 OUTPUT LANGUAGE: ${lang === 'zh' ? 
   'Write ALL content in Simplified Chinese (简体中文). Every word of every description, tip, meal recommendation, event, and analysis must be in Chinese. Restaurant names should include Chinese translation in brackets. Keep place names in original language followed by Chinese in brackets.' 
   : 'Write all content in English.'}
+
+CRITICAL MARKER RULE: ALL section markers and field labels (###DAY###, NUMBER:, DATE:, CITY:, MORNING:, AFTERNOON:, EVENING:, LATE_ARRIVAL:, TYPICAL_ARRIVAL:, TIPS:, EVENTS:, COST:, NAME:, PRICE:, LOCATION:, WHY:, LEVEL:, YOUR_DATES:, LOW:, TYPICAL:, PEAK:, CALENDAR:, FLIGHTS:, ACCOMMODATION:, FOOD:, ACTIVITIES:, TRANSPORT:, TOTAL:, BREAKFAST:, LUNCH:, DINNER:) MUST ALWAYS be written in ENGLISH regardless of output language. Only the VALUES after the colon should be in Chinese when Chinese is selected.
 
 OUTPUT FORMAT — use these EXACT markers, one per line, no extra punctuation:
 
@@ -179,12 +203,13 @@ CALENDAR: [generate 30 days starting 15 days before ${departDate}. Format: YYYY-
 [6 tips total — transport apps, payment, cultural etiquette, booking, safety, family-specific if applicable]
 
 ###BUDGET###
-FLIGHTS: [number only in ${currency}]
-ACCOMMODATION: [number only]
-FOOD: [number only]
-ACTIVITIES: [number only]
-TRANSPORT: [number only]
-TOTAL: [number only]`;
+Calculate realistic estimates for ALL ${totalPax} travellers combined for the entire trip in ${currency}:
+FLIGHTS: [return flights for ${adults} adults + ${children||0} children in ${travelClass} class × estimated per-person fare]
+ACCOMMODATION: [nightly rate × ${nights} nights — independent of group size]
+FOOD: [realistic daily food cost per person × ${nights} days × ${totalPax} people]
+ACTIVITIES: [entry fees, tours, experiences for ${totalPax} people over ${nights} days]
+TRANSPORT: [local transport, airport transfers, inter-city travel for ${totalPax} people]
+TOTAL: [sum of all above, must be higher for more people — ${totalPax} people total]`;
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -305,7 +330,7 @@ function parsePlainText(text, affiliates, localTransport, anchors, currency) {
     practicalTips:  parseList(sections.TIPS || ''),
     budgetBreakdown: parseBudget(sections.BUDGET || '', currency),
     flightPriceAnalysis: parseFlightPrice(sections.FLIGHTPRICE || ''),
-    affiliateRecommendations: buildAffiliates(affiliates, localTransport, anchors),
+    affiliateRecommendations: buildAffiliates(affiliates, localTransport, anchors, lang),
   };
 }
 
@@ -459,60 +484,61 @@ function parseBudget(text, currency) {
   return { flights, accommodation, food, activities, transport, total, currency };
 }
 
-function buildAffiliates(affiliates, localTransport, anchors) {
+function buildAffiliates(affiliates, localTransport, anchors, lang) {
+  const isZh = lang === 'zh';
   const hasCarRental = localTransport && localTransport.toLowerCase().includes('rental');
   const hasEvent = anchors && anchors.some(a => a.type && (a.type.toLowerCase().includes('concert') || a.type.toLowerCase().includes('show')));
 
   return {
     activities: {
-      title: 'Book Activities & Skip the Queue',
-      description: 'Pre-book to guarantee entry and avoid long waits',
+      title: isZh ? '预订活动 & 跳过排队' : 'Book Activities & Skip the Queue',
+      description: isZh ? '提前预订保证入场，避免长时间等待' : 'Pre-book to guarantee entry and avoid long waits',
       platforms: [
-        { name: 'Klook',     url: affiliates.klook,    description: 'Best for Asia activities, theme parks and day tours' },
-        { name: 'Tiqets',    url: affiliates.tiqets,   description: 'Instant mobile tickets for museums and attractions' },
-        { name: 'WeGoTrip',  url: affiliates.wegotrip, description: 'Self-guided audio tours with entry tickets included' },
+        { name: 'Klook',    url: affiliates.klook,    description: isZh ? '亚洲活动、主题公园和一日游首选' : 'Best for Asia activities, theme parks and day tours' },
+        { name: 'Tiqets',   url: affiliates.tiqets,   description: isZh ? '博物馆和景点即时手机票' : 'Instant mobile tickets for museums and attractions' },
+        { name: 'WeGoTrip', url: affiliates.wegotrip, description: isZh ? '含门票的自助语音导览' : 'Self-guided audio tours with entry tickets included' },
       ]
     },
     airportTransfers: {
-      title: 'Airport Transfers',
-      description: 'Door-to-door with professional drivers — no taxi queues',
+      title: isZh ? '机场接送服务' : 'Airport Transfers',
+      description: isZh ? '专业司机点对点接送，无需排队等出租车' : 'Door-to-door with professional drivers — no taxi queues',
       platforms: [
-        { name: 'Welcome Pickups', url: affiliates.welcomePickups, description: 'Fixed prices, meet & greet, available worldwide' },
-        { name: 'Kiwitaxi',        url: affiliates.kiwitaxi,       description: 'Transfers in 100+ countries, various vehicle types' },
+        { name: 'Welcome Pickups', url: affiliates.welcomePickups, description: isZh ? '固定价格，接机举牌，全球服务' : 'Fixed prices, meet & greet, available worldwide' },
+        { name: 'Kiwitaxi',        url: affiliates.kiwitaxi,       description: isZh ? '100+国家接送，多种车型可选' : 'Transfers in 100+ countries, various vehicle types' },
       ]
     },
     esim: {
-      title: 'Stay Connected — Travel eSIM',
-      description: 'Avoid expensive roaming — activate before you fly',
+      title: isZh ? '保持网络畅通 — 旅行eSIM' : 'Stay Connected — Travel eSIM',
+      description: isZh ? '避免昂贵漫游费，登机前激活' : 'Avoid expensive roaming — activate before you fly',
       platforms: [
-        { name: 'Airalo', url: affiliates.airalo, description: 'World largest eSIM store — data in 200+ countries' },
-        { name: 'Yesim',  url: affiliates.yesim,  description: 'Premium Swiss eSIM with global coverage' },
+        { name: 'Airalo', url: affiliates.airalo, description: isZh ? '全球最大eSIM商店，覆盖200+国家' : 'World largest eSIM store — data in 200+ countries' },
+        { name: 'Yesim',  url: affiliates.yesim,  description: isZh ? '瑞士优质eSIM，全球覆盖' : 'Premium Swiss eSIM with global coverage' },
       ]
     },
     insurance: {
-      title: 'Travel Insurance',
-      description: 'Travel with peace of mind',
+      title: isZh ? '旅行保险' : 'Travel Insurance',
+      description: isZh ? '安心出行，全程保障' : 'Travel with peace of mind',
       platforms: [
-        { name: 'EKTA Insurance', url: affiliates.ekta, description: 'Comprehensive cover with fast online claims' },
+        { name: 'EKTA Insurance', url: affiliates.ekta, description: isZh ? '全面保障，快速在线理赔' : 'Comprehensive cover with fast online claims' },
       ]
     },
     flightProtection: {
-      title: 'Flight Delay Compensation',
-      description: 'Free to check — claim up to EUR600 if your flight is disrupted',
+      title: isZh ? '航班延误赔偿' : 'Flight Delay Compensation',
+      description: isZh ? '免费查询，航班受影响最高赔600欧元' : 'Free to check — claim up to EUR600 if your flight is disrupted',
       platforms: [
-        { name: 'AirHelp',    url: affiliates.airhelp,    description: 'Largest flight compensation service worldwide' },
-        { name: 'Compensair', url: affiliates.compensair, description: 'Fast compensation for delayed or cancelled flights' },
+        { name: 'AirHelp',    url: affiliates.airhelp,    description: isZh ? '全球最大航班赔偿服务' : 'Largest flight compensation service worldwide' },
+        { name: 'Compensair', url: affiliates.compensair, description: isZh ? '快速处理延误和取消航班赔偿' : 'Fast compensation for delayed or cancelled flights' },
       ]
     },
     ...(hasCarRental ? { carRental: {
-      title: 'Car Rental',
-      description: 'Best rates from local and international companies',
-      platforms: [{ name: 'GetRentacar', url: affiliates.getRentacar, description: 'Compare 800+ car rental companies worldwide' }]
+      title: isZh ? '租车服务' : 'Car Rental',
+      description: isZh ? '比较本地和国际公司的最优价格' : 'Best rates from local and international companies',
+      platforms: [{ name: 'GetRentacar', url: affiliates.getRentacar, description: isZh ? '对比全球800+租车公司' : 'Compare 800+ car rental companies worldwide' }]
     }} : {}),
     ...(hasEvent ? { events: {
-      title: 'Event & Concert Tickets',
-      description: 'Find and book tickets for live events worldwide',
-      platforms: [{ name: 'TicketNetwork', url: affiliates.ticketNetwork, description: 'Official tickets for concerts, sports and theatre' }]
+      title: isZh ? '活动与演唱会门票' : 'Event & Concert Tickets',
+      description: isZh ? '全球现场活动门票预订' : 'Find and book tickets for live events worldwide',
+      platforms: [{ name: 'TicketNetwork', url: affiliates.ticketNetwork, description: isZh ? '演唱会、体育和剧院官方门票' : 'Official tickets for concerts, sports and theatre' }]
     }} : {}),
   };
 }
