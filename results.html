@@ -335,7 +335,7 @@ function render() {
 
     <div class="main" id="pdfContent">
       <div class="content">
-        ${renderFlights(origin, dest, dateFrom, dateTo, adults)}
+        ${renderFlights(origin, dest, dateFrom, dateTo, adults, formData)}
         ${renderDays(itinerary.days||[])}
         ${renderHotels(itinerary.hotels||[], dateFrom, dateTo, adults)}
         ${renderAffiliates(aff)}
@@ -370,7 +370,7 @@ function render() {
   }, 100);
 }
 
-function renderFlights(origin, dest, dateFrom, dateTo, adults) {
+function renderFlights(origin, dest, dateFrom, dateTo, adults, formData={}) {
   const oCode = origin.match(/\(([A-Z]{3})\)/)?.[1] || origin.slice(0,3).toUpperCase();
   const dCode = dest.match(/\(([A-Z]{3})\)/)?.[1]   || dest.slice(0,3).toUpperCase();
   const oName = origin.replace(/\s*\([A-Z]+\)/,'').trim();
@@ -440,9 +440,32 @@ function renderFlights(origin, dest, dateFrom, dateTo, adults) {
         </div>`:''}
       </div>` : ''}
 
+      <!-- Trip details bar -->
+      <div style="background:var(--paper);border:1px solid var(--mist);border-radius:4px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;gap:16px;flex-wrap:wrap;">
+          <span style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:5px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21 4 19.5 2.5S18 2 16.5 3.5L13 7 4.8 5.2l-2 2 6.3 3.6L5 16l-1.5.4L2 18l2 .5.5 2 1.5-1.5.5-1.5 4-4.1 3.6 6.3 2-2z"/></svg>
+            <strong style="color:var(--ink);">${formData.travelClass||'Economy'}</strong>
+          </span>
+          <span style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:5px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            <strong style="color:var(--ink);">${adults}</strong>
+            <span class="en"> travellers</span><span class="zh"> 位旅行者</span>
+          </span>
+          <span style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:5px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <strong style="color:var(--ink);">${dateFrom}</strong>
+            <span> → </span>
+            <strong style="color:var(--ink);">${dateTo}</strong>
+          </span>
+        </div>
+        <span style="font-size:11px;color:var(--text-secondary);" class="en">Return · ${currency}</span>
+        <span style="font-size:11px;color:var(--text-secondary);" class="zh">往返 · ${currency}</span>
+      </div>
+
       <!-- Search Links -->
-      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;line-height:1.6;" class="en">Search live prices across major platforms — prices update in real time:</p>
-      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;line-height:1.6;" class="zh">在各大平台搜索实时票价：</p>
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;line-height:1.6;" class="en">Search live prices — details pre-filled where possible:</p>
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;line-height:1.6;" class="zh">搜索实时票价 — 部分平台已预填搜索条件：</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <a href="${aviasalesUrl}" target="_blank" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--ink);border-radius:4px;text-decoration:none;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
           <div>
@@ -477,8 +500,8 @@ function renderFlights(origin, dest, dateFrom, dateTo, adults) {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         </a>
       </div>
-      <p style="font-size:11px;color:var(--text-secondary);margin-top:12px;line-height:1.6;" class="en">Prices vary by date, class and availability. Always verify before booking.</p>
-      <p style="font-size:11px;color:var(--text-secondary);margin-top:12px;line-height:1.6;" class="zh">价格因日期、舱位和座位供应而异，请在预订前核实。</p>
+      <p style="font-size:11px;color:var(--text-secondary);margin-top:12px;line-height:1.6;" class="en">Prices update in real time. Some details may need manual confirmation on the platform.</p>
+      <p style="font-size:11px;color:var(--text-secondary);margin-top:12px;line-height:1.6;" class="zh">价格实时更新。部分信息可能需要在平台上手动确认。</p>
     </div>
   </div>`;
 }
