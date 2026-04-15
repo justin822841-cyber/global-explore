@@ -773,10 +773,16 @@
 
     // 2. Fetch itinerary with SSE streaming
     try {
-      const itineraryRes = await fetch('/api/itinerary', {
+      // Add lang to formData
+    const itineraryPayload = {
+      ...formData,
+      lang: localStorage.getItem('ge_lang') || 'en'
+    };
+
+    const itineraryRes = await fetch('/api/itinerary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(itineraryPayload)
       });
 
       if (!itineraryRes.ok) {
