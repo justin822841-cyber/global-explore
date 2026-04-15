@@ -75,6 +75,44 @@ export default async function handler(req, res) {
     ? 'Been once: skip obvious tourist spots, go deeper into local neighbourhoods and second-tier attractions.'
     : 'Multiple visits: avoid all tourist trails, focus on hyper-local experiences and hidden gems only.';
 
+
+  // Pre-compute dynamic content depth based on trip length
+  let contentDepthNote, morningFmt, afternoonFmt, eveningFmt, mealFmt, tipsFmt;
+
+  if (nights <= 14) {
+    contentDepthNote = 'CONTENT DEPTH: FULL — 2 sentences per time slot, 2 meal options per meal, 2 tips per day';
+    morningFmt   = 'MORNING: [2 sentences — specific venue, what to do, insider tip]';
+    afternoonFmt = 'AFTERNOON: [2 sentences — specific venue, what to do]';
+    eveningFmt   = 'EVENING: [2 sentences — atmosphere, what to do, where to go]';
+    mealFmt      = 'BREAKFAST: Option 1: [Name] ([area]) — [description, price ' + currSym + '/person]. Option 2: [Name] — [description]\nLUNCH: Option 1: [Name] ([area]) — [description]. Option 2: [Name] — [description]\nDINNER: Option 1: [Name] ([area]) — [description]. Option 2: [Name] — [description]';
+    tipsFmt      = 'TIPS: Tip 1: [transport or booking tip]. Tip 2: [money-saving or timing tip]';
+  } else if (nights <= 20) {
+    contentDepthNote = 'CONTENT DEPTH: STANDARD — 2 sentences per time slot, 1 meal option per meal, 1 tip per day';
+    morningFmt   = 'MORNING: [2 sentences — specific venue and what to do]';
+    afternoonFmt = 'AFTERNOON: [2 sentences — specific venue and what to do]';
+    eveningFmt   = 'EVENING: [2 sentences — where to go and what to do]';
+    mealFmt      = 'BREAKFAST: [Name] ([area]) — [description, price ' + currSym + '/person]\nLUNCH: [Name] ([area]) — [description]\nDINNER: [Name] ([area]) — [description]';
+    tipsFmt      = 'TIPS: [1 practical tip]';
+  } else if (nights <= 30) {
+    contentDepthNote = 'CONTENT DEPTH: COMPACT — 1 sentence per time slot, breakfast and dinner only, 1 tip per day';
+    morningFmt   = 'MORNING: [1 sentence — specific venue and activity]';
+    afternoonFmt = 'AFTERNOON: [1 sentence — specific venue and activity]';
+    eveningFmt   = 'EVENING: [1 sentence — dinner area and atmosphere]';
+    mealFmt      = 'BREAKFAST: [Name] ([area]) — [brief description]\nDINNER: [Name] ([area]) — [brief description]';
+    tipsFmt      = 'TIPS: [1 short tip]';
+  } else {
+    contentDepthNote = 'CONTENT DEPTH: BRIEF — 1 short sentence per time slot, breakfast only, 1 tip per day';
+    morningFmt   = 'MORNING: [1 short sentence covering morning and afternoon combined]';
+    afternoonFmt = 'AFTERNOON: [1 short sentence]';
+    eveningFmt   = 'EVENING: [1 short sentence covering evening and dinner]';
+    mealFmt      = 'BREAKFAST: [Name] — [one brief description]';
+    tipsFmt      = 'TIPS: [1 short tip]';
+  }
+
+  const langInstruction = lang === 'zh'
+    ? 'Write ALL content in Simplified Chinese (简体中文). Every word of every description, tip, meal recommendation, event, and analysis must be in Chinese. Restaurant names should include Chinese translation in brackets. Keep place names in original language followed by Chinese in brackets.'
+    : 'Write all content in English.';
+
   const prompt = `You are an expert travel planner with deep local knowledge of every destination worldwide. Create a warm, personalised, practical travel itinerary in PLAIN TEXT using the exact section markers below. Do NOT output JSON. Do NOT use markdown.
 
 TRIP: ${origin} to ${destination} | ${departDate} to ${returnDate} | ${nights} nights
@@ -124,9 +162,7 @@ TRAVEL DAY RULES — follow these precisely:
    - Account for check-in time at anchor hotel
    - Only schedule anchor commitment AFTER arrival and check-in if timing allows
 
-OUTPUT LANGUAGE: ${lang === 'zh' ? 
-  'Write ALL content in Simplified Chinese (简体中文). Every word of every description, tip, meal recommendation, event, and analysis must be in Chinese. Restaurant names should include Chinese translation in brackets. Keep place names in original language followed by Chinese in brackets.' 
-  : 'Write all content in English.'}
+OUTPUT LANGUAGE: ${langInstruction}
 
 CRITICAL MARKER RULE: ALL section markers and field labels (###DAY###, NUMBER:, DATE:, CITY:, MORNING:, AFTERNOON:, EVENING:, LATE_ARRIVAL:, TYPICAL_ARRIVAL:, TIPS:, EVENTS:, COST:, NAME:, PRICE:, LOCATION:, WHY:, LEVEL:, YOUR_DATES:, LOW:, TYPICAL:, PEAK:, CALENDAR:, FLIGHTS:, ACCOMMODATION:, FOOD:, ACTIVITIES:, TRANSPORT:, TOTAL:, BREAKFAST:, LUNCH:, DINNER:) MUST ALWAYS be written in ENGLISH regardless of output language. Only the VALUES after the colon should be in Chinese when Chinese is selected.
 
@@ -155,43 +191,18 @@ COST: [estimated daily cost per person in ${currency}, number only]
 [Repeat ###DAY### for each remaining day — NOT Day 1 format, use standard format below]
 
 STANDARD DAY FORMAT (Day 2 onwards):
-${nights <= 14 ? `
-CONTENT DEPTH: FULL — 2 sentences per time slot, 2 meal options per meal, 2 tips per day
-` : nights <= 20 ? `
-CONTENT DEPTH: STANDARD — 2 sentences per time slot, 1 meal option per meal, 1 tip per day
-` : nights <= 30 ? `
-CONTENT DEPTH: COMPACT — 1 sentence per time slot, 1 meal option per meal, 1 tip per day
-` : `
-CONTENT DEPTH: BRIEF — 1 short sentence per time slot, breakfast and dinner only (skip lunch), 1 tip per day
-`}
+${contentDepthNote}
 
 ###DAY###
 NUMBER: [day number]
 DATE: [YYYY-MM-DD]
 CITY: [city name]
 TITLE: [evocative specific day title]
-${nights <= 14 ? `MORNING: [2 sentences — specific venue, what to do, insider tip]
-AFTERNOON: [2 sentences — specific venue, what to do]
-EVENING: [2 sentences — atmosphere, what to do, where to go]
-BREAKFAST: Option 1: [Name] ([area]) — [description, price ${currSym}/person]. Option 2: [Name] — [description]
-LUNCH: Option 1: [Name] ([area]) — [description]. Option 2: [Name] — [description]
-DINNER: Option 1: [Name] ([area]) — [description]. Option 2: [Name] — [description]
-TIPS: Tip 1: [transport or booking tip]. Tip 2: [money-saving or timing tip]` : nights <= 20 ? `MORNING: [2 sentences — specific venue and what to do]
-AFTERNOON: [2 sentences — specific venue and what to do]
-EVENING: [2 sentences — where to go and what to do]
-BREAKFAST: [Name] ([area]) — [description, price ${currSym}/person]
-LUNCH: [Name] ([area]) — [description]
-DINNER: [Name] ([area]) — [description]
-TIPS: [1 practical tip]` : nights <= 30 ? `MORNING: [1 sentence — specific venue and activity]
-AFTERNOON: [1 sentence — specific venue and activity]
-EVENING: [1 sentence — dinner area and atmosphere]
-BREAKFAST: [Name] ([area]) — [brief description]
-DINNER: [Name] ([area]) — [brief description]
-TIPS: [1 short tip]` : `MORNING: [1 short sentence covering morning activity]
-AFTERNOON: [1 short sentence covering afternoon]
-EVENING: [1 short sentence covering evening and dinner]
-BREAKFAST: [Name] — [one word description]
-TIPS: [1 short tip]`}
+${morningFmt}
+${afternoonFmt}
+${eveningFmt}
+${mealFmt}
+${tipsFmt}
 COST: [number only]
 
 ###HOTELS###
@@ -303,7 +314,7 @@ TOTAL: [sum of all above, must be higher for more people — ${totalPax} people 
       .replace(/\u2013|\u2014/g, '-');
 
     // Parse plain text into structured JSON
-    const itinerary = parsePlainText(sanitizedText, affiliates, localTransport, anchors, currency);
+    const itinerary = parsePlainText(sanitizedText, affiliates, localTransport, anchors, currency, lang);
 
     // Send result
     res.write('data: ' + JSON.stringify({ success: true, itinerary }) + '\n\n');
