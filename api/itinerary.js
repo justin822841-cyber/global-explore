@@ -16,7 +16,8 @@ export default async function handler(req, res) {
     dietary = 'none', hasVisited = 'never',
     localTransport = '', crowdPreference = '',
     shoppingFocus = 'no', nearbyCity = 'No',
-    specialRequests = '', anchors = []
+    specialRequests = '', anchors = [],
+    returnCity = ''
   } = req.body;
 
   if (!origin || !destination) {
@@ -116,6 +117,7 @@ export default async function handler(req, res) {
   const prompt = `You are an expert travel planner with deep local knowledge of every destination worldwide. Create a warm, personalised, practical travel itinerary in PLAIN TEXT using the exact section markers below. Do NOT output JSON. Do NOT use markdown.
 
 TRIP: ${origin} to ${destination} | ${departDate} to ${returnDate} | ${nights} nights
+RETURN FLIGHT FROM: ${returnCity && returnCity !== destination ? returnCity.replace(/\s*\([A-Z]+\)/, '').trim() : destination.replace(/\s*\([A-Z]+\)/, '').trim().split(',')[0].trim()} back to ${origin}
 TRAVELLERS: ${adults} adults${hasChildren ? `, ${children} children (ages: ${childAges})` : ''}${hasInfants ? `, ${infants} infants` : ''}${hasSeniors ? `, ${seniors} seniors (ages: ${seniorAges})` : ''} | Total: ${totalPax} people
 BUDGET: ${budget} ${currency} | CLASS: ${travelClass} | ACCOMMODATION: ${accommodationLevel} ${accommodationType} preferred
 STYLE: ${Array.isArray(travelStyle) ? travelStyle.join(', ') : travelStyle} | PACE: ${pace} | PURPOSE: ${purpose}
@@ -151,10 +153,12 @@ TRAVEL DAY RULES — follow these precisely:
    - Never plan a full day of sightseeing on a transfer day
 
 3. LAST DAY (${returnDate}):
-   - MORNING: gentle final activity near hotel, breakfast, pack and check out
+   - The return flight departs from: ${returnCity && returnCity !== destination ? returnCity.replace(/\s*\([A-Z]+\)/, '').trim() : destination.replace(/\s*\([A-Z]+\)/, '').trim().split(',')[0].trim()}
+   - If this is different from other cities visited, ensure the itinerary brings the traveller back to this city BEFORE the last day
+   - MORNING: gentle final activity near the departure city, breakfast, pack and check out
    - AFTERNOON: transfer to airport — allow 3 hours before international departure
    - State airport transfer cost and time
-   - EVENING: on the plane
+   - EVENING: on the plane back to ${origin}
 
 4. ANCHOR POINT TRAVEL DAYS:
    For each anchor in the itinerary that requires travel from the previous city:
@@ -163,6 +167,14 @@ TRAVEL DAY RULES — follow these precisely:
    - Only schedule anchor commitment AFTER arrival and check-in if timing allows
 
 OUTPUT LANGUAGE: ${langInstruction}
+
+HOTEL REFERENCE RULE — follow precisely:
+- In daily itinerary descriptions, ALWAYS say "your hotel" not a specific hotel name
+- EXCEPTION: On Day 1 arrival scenarios only, add one bracketed recommendation after first mention of hotel:
+  Format: "your hotel (Based on your ${accommodationLevel} preference, we suggest [Hotel Name] — [one sentence on why: location benefit, key feature])"
+- Example: "Check into your hotel (Based on your Luxury preference, we suggest The Beverly Hills Hotel — iconic pink palace 5 min walk to Rodeo Drive) and take a gentle stroll..."
+- All other days: just say "your hotel" with no brackets
+- The ###HOTELS### section will provide full recommendations separately
 
 CRITICAL MARKER RULE: ALL section markers and field labels (###DAY###, NUMBER:, DATE:, CITY:, MORNING:, AFTERNOON:, EVENING:, LATE_ARRIVAL:, TYPICAL_ARRIVAL:, TIPS:, EVENTS:, COST:, NAME:, PRICE:, LOCATION:, WHY:, LEVEL:, YOUR_DATES:, LOW:, TYPICAL:, PEAK:, CALENDAR:, FLIGHTS:, ACCOMMODATION:, FOOD:, ACTIVITIES:, TRANSPORT:, TOTAL:, BREAKFAST:, LUNCH:, DINNER:) MUST ALWAYS be written in ENGLISH regardless of output language. Only the VALUES after the colon should be in Chinese when Chinese is selected.
 
@@ -350,7 +362,7 @@ function parseFlightPrice(text) {
   };
 }
 
-function parsePlainText(text, affiliates, localTransport, anchors, currency, lang) {
+function parsePlainText(text, affiliates, localTransport, anchors, currency) {
   const sections = splitSections(text);
 
   return {
