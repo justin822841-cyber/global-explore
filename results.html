@@ -435,7 +435,7 @@ function render() {
       <div class="content">
         ${renderFlights(origin, dest, dateFrom, dateTo, adults, formData)}
         ${renderDays(itinerary.days||[])}
-        ${renderHotels(itinerary.hotels||[], dateFrom, dateTo, adults)}
+        ${renderHotels(itinerary.hotels||[], dateFrom, dateTo, adults, dest)}
         ${renderAffiliates(aff)}
         ${renderFood(itinerary.foodHighlights||[])}
         ${renderTips(itinerary.practicalTips||[])}
@@ -714,7 +714,7 @@ function renderDays(days) {
   </div>`;
 }
 
-function renderHotels(hotels, checkIn, checkOut, adults) {
+function renderHotels(hotels, checkIn, checkOut, adults, dest='') {
   if (!hotels.length) return '';
   const adultCount = parseInt(adults)||1;
   const hotelCurrency = currency;
