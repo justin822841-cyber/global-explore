@@ -99,16 +99,17 @@ NUMBER: 1
 DATE: ${departDate}
 CITY: [city name]
 TITLE: [evocative day title]
-MORNING: [3-4 sentences — specific venues, insider tips, what to see/do]
-AFTERNOON: [3-4 sentences — specific venues, insider tips]
-EVENING: [3-4 sentences — specific venues, atmosphere, what to do]
+MORNING: [2-3 sentences — specific venues, insider tips, what to see/do]
+AFTERNOON: [2-3 sentences — specific venues, insider tips]
+EVENING: [2-3 sentences — specific venues, atmosphere, what to do]
 BREAKFAST: Option 1: [Restaurant name] ([area]) — [description, price ${currSym}]. Option 2: [Restaurant name] — [description]
 LUNCH: Option 1: [Restaurant name] ([area]) — [description]. Option 2: [Restaurant name] — [description]
 DINNER: Option 1: [Restaurant name] ([area]) — [description]. Option 2: [Restaurant name] — [description]
 TIPS: [2-3 specific tips: transport cards, booking advice, timing, money-saving]
 COST: [estimated daily cost per person in ${currency}, number only]
+EVENTS: [For Day 1 ONLY: list 2-4 must-see local events, sports games, concerts, shows, or festivals happening during the trip dates in this city. Format: Event name (date/timing) — brief description — where to book. If none known, list 2 iconic regular experiences like NBA games, Broadway shows, local festivals]
 
-[Repeat ###DAY### section for each day of the trip]
+[Repeat ###DAY### section for each day of the trip — EVENTS field only needed for Day 1]
 
 ###HOTELS###
 CITY: [city name]
@@ -127,6 +128,12 @@ NAME: [third hotel]
 PRICE: [number only]
 LOCATION: [neighbourhood]
 WHY: [2 sentences]
+
+###FLIGHTPRICE###
+YOUR_DATES: [Describe whether the travel dates fall in low/typical/peak season and why in 1-2 sentences]
+LOW: [Describe what months/periods have cheapest flights on this route and why — school holidays, off-peak season etc]
+TYPICAL: [Describe normal/shoulder season periods for this route]
+PEAK: [Describe most expensive periods — school holidays, major events, festivals, sports seasons that affect this route. Mention any major events like World Cup, Olympics, major concerts if relevant]
 
 ###FOOD###
 [Dish name] at [Restaurant] ([Neighbourhood]) — [one sentence why unmissable]
@@ -154,7 +161,7 @@ TOTAL: [number only]`;
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 8000,
+        max_tokens: 10000,
         stream: true,
         messages: [{ role: 'user', content: prompt }]
       })
@@ -214,6 +221,17 @@ TOTAL: [number only]`;
 }
 
 // ── PLAIN TEXT PARSER ──
+
+function parseFlightPrice(text) {
+  if (!text) return null;
+  return {
+    yourDates: getField(text, 'YOUR_DATES'),
+    low:       getField(text, 'LOW'),
+    typical:   getField(text, 'TYPICAL'),
+    peak:      getField(text, 'PEAK'),
+  };
+}
+
 function parsePlainText(text, affiliates, localTransport, anchors, currency) {
   const sections = splitSections(text);
 
@@ -224,6 +242,7 @@ function parsePlainText(text, affiliates, localTransport, anchors, currency) {
     foodHighlights: parseList(sections.FOOD || ''),
     practicalTips:  parseList(sections.TIPS || ''),
     budgetBreakdown: parseBudget(sections.BUDGET || '', currency),
+    flightPriceAnalysis: parseFlightPrice(sections.FLIGHTPRICE || ''),
     affiliateRecommendations: buildAffiliates(affiliates, localTransport, anchors),
   };
 }
@@ -248,6 +267,10 @@ function splitSections(text) {
       if (current === 'DAY') result.DAYS.push(buf.join('\n'));
       else if (current) flush(result, current, buf);
       current = 'HOTELS'; buf = [];
+    } else if (trimmed === '###FLIGHTPRICE###') {
+      if (current === 'DAY') result.DAYS.push(buf.join('\n'));
+      else if (current) flush(result, current, buf);
+      current = 'FLIGHTPRICE'; buf = [];
     } else if (trimmed === '###FOOD###') {
       if (current === 'DAY') result.DAYS.push(buf.join('\n'));
       else if (current) flush(result, current, buf);
@@ -299,6 +322,7 @@ function parseDays(dayBlocks) {
       evening:   getField(block, 'EVENING'),
       meals,
       tips:      getField(block, 'TIPS'),
+      events:    getField(block, 'EVENTS'),
       estimatedCost: parseFloat(getField(block, 'COST')) || 0,
     };
   }).filter(d => d.morning || d.title);
@@ -342,12 +366,29 @@ function parseList(text) {
 }
 
 function parseBudget(text, currency) {
-  const flights       = parseFloat(getField(text, 'FLIGHTS'))       || 0;
-  const accommodation = parseFloat(getField(text, 'ACCOMMODATION')) || 0;
-  const food          = parseFloat(getField(text, 'FOOD'))          || 0;
-  const activities    = parseFloat(getField(text, 'ACTIVITIES'))    || 0;
-  const transport     = parseFloat(getField(text, 'TRANSPORT'))     || 0;
-  const total         = parseFloat(getField(text, 'TOTAL'))         || (flights + accommodation + food + activities + transport);
+  // Try multiple field name variations Claude might use
+  function getBudgetField(t, ...keys) {
+    for (const key of keys) {
+      const val = parseFloat(getField(t, key));
+      if (val > 0) return val;
+    }
+    // Also try extracting any number after the key on the same line
+    for (const key of keys) {
+      const re = new RegExp(key + '[^\\d]*(\\d[\\d,]*)', 'im');
+      const m = t.match(re);
+      if (m) {
+        const val = parseFloat(m[1].replace(/,/g, ''));
+        if (val > 0) return val;
+      }
+    }
+    return 0;
+  }
+  const flights       = getBudgetField(text, 'FLIGHTS', 'Flight', 'Flights');
+  const accommodation = getBudgetField(text, 'ACCOMMODATION', 'Accommodation', 'Hotel', 'Hotels');
+  const food          = getBudgetField(text, 'FOOD', 'Food', 'Dining', 'Meals');
+  const activities    = getBudgetField(text, 'ACTIVITIES', 'Activities', 'Activity', 'Entertainment');
+  const transport     = getBudgetField(text, 'TRANSPORT', 'Transport', 'Transportation', 'Local transport');
+  const total         = getBudgetField(text, 'TOTAL', 'Total') || (flights + accommodation + food + activities + transport);
   return { flights, accommodation, food, activities, transport, total, currency };
 }
 
