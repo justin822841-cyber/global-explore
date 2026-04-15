@@ -306,7 +306,7 @@ footer{padding:32px 24px 24px;}.footer-main{flex-direction:column;gap:12px;text-
     <a href="#how" class="nav-link zh">服务流程</a>
     <a href="#plan" class="nav-link en">Plan a Trip</a>
     <a href="#plan" class="nav-link zh">开始规划</a>
-    <select class="currency-select" id="currencySelect" onchange="setCurrency(this.value)">
+    <select class="currency-select" id="currencySelect" onchange="setCurrency(this.value)" title="Select currency">
       <option value="AUD">AUD</option><option value="USD">USD</option>
       <option value="GBP">GBP</option><option value="EUR">EUR</option>
       <option value="CNY">CNY</option><option value="SGD">SGD</option>
@@ -328,12 +328,6 @@ footer{padding:32px 24px 24px;}.footer-main{flex-direction:column;gap:12px;text-
   </div>
 </nav>
 
-<div class="trust-bar" id="trustbar">
-  <div class="trust-bar-item">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-    <span class="en"><strong>Free to use</strong> · We receive a commission from airlines and hotels when you book · Your price is never marked up</span>
-    <span class="zh"><strong>对用户完全免费</strong> · 当你完成预订时我们从航空公司或酒店收取佣金 · 你支付的永远是官方原价</span>
-  </div>
 </div>
 
 <section class="hero" id="hero">
@@ -342,42 +336,49 @@ footer{padding:32px 24px 24px;}.footer-main{flex-direction:column;gap:12px;text-
     <p class="eyebrow zh">全球专业旅行规划服务</p>
     <h1 class="hero-title en">Stop Searching.<br><em>Start Travelling.</em></h1>
     <h1 class="hero-title zh">不用再到处搜索，<br><em>专心期待出发。</em></h1>
-    <p class="hero-desc en">Most travellers spend 4–6 hours switching between apps to plan one trip. Tell us once — we search hundreds of providers worldwide and deliver a complete, day-by-day itinerary built around your group.</p>
-    <p class="hero-desc zh">大多数旅行者要花4-6小时在各种平台之间反复切换。只需填一次表，我们实时搜索全球数百家平台，为你生成完整的个性化行程。</p>
+    <p class="hero-desc en">Tell us once. We handle the rest — flights, hotels, and a complete day-by-day itinerary built around your group, your budget, and your dates.</p>
+    <p class="hero-desc zh">只需填一次表。我们处理其余的一切 — 机票、酒店和完整的逐日行程，完全围绕你的团队、预算和日期量身定制。</p>
     <a href="#plan" class="hero-cta">
       <span class="en">Plan My Trip</span><span class="zh">开始规划</span>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
     </a>
     <div class="hero-stats">
-      <div><div class="stat-num">500+</div><div class="stat-label en">Airlines Worldwide</div><div class="stat-label zh">全球航空公司</div></div>
-      <div><div class="stat-num">30</div><div class="stat-label en">Day Best Price Search</div><div class="stat-label zh">天最优价搜索</div></div>
-      <div><div class="stat-num">5 min</div><div class="stat-label en">Form to full plan</div><div class="stat-label zh">从填表到完整行程</div></div>
+      <div><div class="stat-num">190+</div><div class="stat-label en">Countries Covered</div><div class="stat-label zh">覆盖国家和地区</div></div>
+      <div><div class="stat-num">30</div><div class="stat-label en">Day Fare Search</div><div class="stat-label zh">天票价搜索</div></div>
+      <div><div class="stat-num">5 min</div><div class="stat-label en">To Your Full Plan</div><div class="stat-label zh">生成完整行程</div></div>
     </div>
   </div>
   <div class="hero-right">
     <div class="hero-map-bg"></div>
     <div class="hero-grid"></div>
     <div class="hero-card card-flight">
-      <div class="card-label">30-Day Best Fare Search — London to Tokyo</div>
+      <div class="card-label en">Fare Period Guide — Melbourne to Tokyo</div>
+      <div class="card-label zh">票价区间参考 — 墨尔本飞东京</div>
       <div class="price-calendar">
-        <div class="cal-day"><div>Jun 12</div><div class="cal-price">$895</div></div>
-        <div class="cal-day"><div>Jun 15</div><div class="cal-price">$875</div></div>
-        <div class="cal-day best"><div>Jun 19 ★</div><div class="cal-price">$820</div></div>
-        <div class="cal-day"><div>Jun 24</div><div class="cal-price">$858</div></div>
-        <div class="cal-day"><div>Jun 28</div><div class="cal-price">$869</div></div>
+        <div class="cal-day best"><div>Jun 12</div><div class="cal-price">🟢 Low</div></div>
+        <div class="cal-day"><div>Jun 19</div><div class="cal-price">🟡 Typical</div></div>
+        <div class="cal-day" style="border-color:rgba(224,85,85,0.4);background:rgba(224,85,85,0.08);"><div>Jul 4</div><div class="cal-price" style="color:#e05555;">🔴 Peak</div></div>
+        <div class="cal-day best"><div>Aug 20</div><div class="cal-price">🟢 Low</div></div>
+        <div class="cal-day"><div>Sep 10</div><div class="cal-price">🟡 Typical</div></div>
       </div>
       <div class="price-row">
-        <div><div class="price-tag">$820</div><div class="price-note en">Best fare in 30-day window</div><div class="price-note zh">30天内最优票价</div></div>
-        <div style="font-size:11px;color:rgba(201,168,76,0.7);text-align:right;">Save $75<br>vs Jun 20</div>
+        <div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.5);" class="en">🔴 Peak — School holidays &amp; major events</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.5);" class="zh">🔴 高价期 — 学校假期和大型活动</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px;" class="en">🟢 Low — Shoulder season, best value</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px;" class="zh">🟢 低价期 — 淡季，最优价值</div>
+        </div>
       </div>
     </div>
     <div class="hero-card card-itinerary">
-      <div class="card-label">10-Day Itinerary — Tokyo + Osaka</div>
+      <div class="card-label en">10-Day Itinerary — Tokyo · Kyoto · Osaka</div>
+      <div class="card-label zh">10天行程 — 东京 · 京都 · 大阪</div>
       <div class="day-list">
-        <div class="day-item"><div class="day-num">1</div><span>Arrive Tokyo · Asakusa · Local dinner</span></div>
-        <div class="day-item"><div class="day-num">4</div><span>Shinkansen to Osaka · Dotonbori evening</span></div>
-        <div class="day-item"><div class="day-num">6</div><span>Day trip: Nara — 45 min from Osaka</span></div>
-        <div class="day-item" style="opacity:0.4;"><div class="day-num">+</div><span>Full 10-day plan included</span></div>
+        <div class="day-item"><div class="day-num">1</div><span class="en">Arrive Tokyo · Asakusa temple walk · local ramen</span><span class="zh">抵达东京 · 浅草寺 · 当地拉面</span></div>
+        <div class="day-item"><div class="day-num">3</div><span class="en">Shinkansen to Kyoto · Arashiyama bamboo grove</span><span class="zh">新干线到京都 · 岚山竹林</span></div>
+        <div class="day-item"><div class="day-num">6</div><span class="en">Day trip: Nara deer park — 45 min from Kyoto</span><span class="zh">一日游：奈良鹿公园 — 距京都45分钟</span></div>
+        <div class="day-item"><div class="day-num">8</div><span class="en">Osaka street food · Dotonbori night market</span><span class="zh">大阪街头美食 · 道顿堀夜市</span></div>
+        <div class="day-item" style="opacity:0.4;"><div class="day-num">+</div><span class="en">Full day-by-day plan with hotels &amp; dining</span><span class="zh">完整逐日行程含酒店和餐饮</span></div>
       </div>
     </div>
   </div>
@@ -407,7 +408,7 @@ footer{padding:32px 24px 24px;}.footer-main{flex-direction:column;gap:12px;text-
       <p class="en">The more detail you give us, the more personalised your itinerary. This takes about five minutes.</p>
       <p class="zh">你提供的信息越详细，行程就越精准。大约需要五分钟。</p>
       <div class="form-trust">
-        <div class="trust-item"><div class="trust-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c9a84c" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div class="trust-text"><strong class="en">Price never marked up</strong><strong class="zh">价格绝不加价</strong><span class="en">We earn commission when you book. The service stays free for you.</span><span class="zh">你预订时我们收取佣金，服务对你保持免费。</span></div></div>
+        <div class="trust-item"><div class="trust-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c9a84c" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div class="trust-text"><strong class="en">Free to use</strong><strong class="zh">完全免费使用</strong><span class="en">Free to use · We may earn partner commissions at no extra cost to you.</span><span class="zh">免费使用 · 我们可能从合作伙伴获得佣金，不会增加你的费用。</span></div></div>
         <div class="trust-item"><div class="trust-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c9a84c" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="trust-text"><strong class="en">30-day live fare search</strong><strong class="zh">30天实时票价搜索</strong><span class="en">Flight data pulled live across 30 days to find your best fare worldwide.</span><span class="zh">在30天内实时搜索全球最优票价。</span></div></div>
         <div class="trust-item"><div class="trust-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c9a84c" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div class="trust-text"><strong class="en">Your data is private</strong><strong class="zh">数据完全私密</strong><span class="en">Used only to build your itinerary. Never sold or shared.</span><span class="zh">仅用于生成行程，绝不出售或共享。</span></div></div>
       </div>
@@ -740,7 +741,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 
 // HEADER
-function setHeaderHeight(){const n=document.getElementById('navbar'),t=document.getElementById('trustbar');if(n&&t){const h=n.offsetHeight;t.style.top=h+'px';document.getElementById('hero').style.paddingTop=(h+t.offsetHeight)+'px';}}
+function setHeaderHeight(){const n=document.getElementById('navbar');if(n){document.getElementById('hero').style.paddingTop=n.offsetHeight+'px';}}
 window.addEventListener('load',setHeaderHeight);
 window.addEventListener('resize',setHeaderHeight);
 
