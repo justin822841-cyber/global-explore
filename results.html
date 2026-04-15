@@ -322,37 +322,49 @@ function renderFareCalendar(calendar, departDate) {
   if (!calendar || Object.keys(calendar).length === 0) return '';
 
   const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const dates = Object.keys(calendar).sort();
+  // Sort dates and filter valid ones
+  const dates = Object.keys(calendar).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d.trim())).sort();
   if (dates.length === 0) return '';
 
-  const firstDate = new Date(dates[0]);
-  const startDay  = firstDate.getDay(); // 0=Sun
+  // Parse dates using UTC to avoid timezone issues
+  function parseDate(str) {
+    const [y, m, d] = str.trim().split('-').map(Number);
+    return new Date(Date.UTC(y, m-1, d));
+  }
+
+  const firstDate = parseDate(dates[0]);
+  const startDay  = firstDate.getUTCDay();
 
   // Build calendar grid
   let cells = '';
-  // Day headers
   days.forEach(d => { cells += `<div class="fare-cal-header">${d}</div>`; });
+
   // Empty cells before first date
   for (let i = 0; i < startDay; i++) {
     cells += `<div class="fare-cal-day empty"></div>`;
   }
+
   // Date cells
   dates.forEach(dateStr => {
-    const level = calendar[dateStr] || 'typical';
-    const d = new Date(dateStr);
-    const dayNum = d.getDate();
-    const isDep = dateStr === departDate;
-    cells += `<div class="fare-cal-day ${level}${isDep?' departure':''}" title="${isDep?'Your departure — ':''} ${level} season">
+    const key = dateStr.trim();
+    const level = (calendar[key] || 'typical').toLowerCase().replace(/[^a-z]/g,'');
+    const validLevel = ['low','typical','peak'].includes(level) ? level : 'typical';
+    const d = parseDate(key);
+    const dayNum = d.getUTCDate();
+    const isDep = key === departDate;
+    cells += `<div class="fare-cal-day ${validLevel}${isDep?' departure':''}" title="${isDep?'Departure — ':''}${validLevel} season">
       <div class="fare-cal-num">${dayNum}${isDep?'★':''}</div>
       <div class="fare-cal-dot"></div>
     </div>`;
   });
 
   // Month label
-  const firstD = new Date(dates[0]);
-  const lastD  = new Date(dates[dates.length-1]);
-  const monthLabel = firstD.toLocaleDateString('en',{month:'short',year:'numeric'}) +
-    (firstD.getMonth() !== lastD.getMonth() ? ' — ' + lastD.toLocaleDateString('en',{month:'short',year:'numeric'}) : '');
+  const firstD = parseDate(dates[0]);
+  const lastD  = parseDate(dates[dates.length-1]);
+  const fmt = (d) => d.toLocaleDateString('en',{month:'short',year:'numeric',timeZone:'UTC'});
+  const monthLabel = firstD.getUTCMonth() !== lastD.getUTCMonth()
+    ? fmt(firstD) + ' — ' + fmt(lastD)
+    : fmt(firstD);
 
   return `<div class="fare-calendar-wrap">
     <div class="fare-calendar-title en">Fare Calendar — ${monthLabel} <span style="color:var(--gold)">★ Your departure</span></div>
@@ -717,7 +729,14 @@ function renderHotels(hotels, checkIn, checkOut, adults) {
     <div class="section-card-body">
       <p style="font-size:13px;color:var(--text-secondary);margin-bottom:20px;line-height:1.6;" class="en">Selected to match your preferences. Click any platform to check live prices in English.</p>
       <p style="font-size:13px;color:var(--text-secondary);margin-bottom:20px;line-height:1.6;" class="zh">根据你的偏好精选推荐，点击任意平台查看实时价格。</p>
-      ${hotels.map(ch=>`
+      ${[...hotels].sort((a,b) => {
+        const destClean = dest.replace(/\s*\([A-Z]+\)/,'').trim().toLowerCase();
+        const aMatch = a.city.toLowerCase().includes(destClean) || destClean.includes(a.city.toLowerCase());
+        const bMatch = b.city.toLowerCase().includes(destClean) || destClean.includes(b.city.toLowerCase());
+        if (aMatch && !bMatch) return -1;
+        if (!aMatch && bMatch) return 1;
+        return 0;
+      }).map(ch=>`
         <div style="margin-bottom:20px;">
           <div style="font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--gold);font-weight:500;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--mist);">${ch.city}</div>
           ${(ch.recommendations||[]).map(h=>`
@@ -735,14 +754,11 @@ function renderHotels(hotels, checkIn, checkOut, adults) {
                       <span class="hotel-price-note zh"> / 晚（参考）— 请在平台核实</span>
                     </div>
                     <div class="hotel-links">
-                      <a href="https://www.agoda.com/search?city=${encodeURIComponent(ch.city)}&checkIn=${checkIn}&checkOut=${checkOut}&adults=${adultCount}&searchText=${encodeURIComponent(h.name)}&lang=en-us&currency=${hotelCurrency}" target="_blank" class="hotel-link">
-                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Agoda
-                      </a>
-                      <a href="https://www.booking.com/search.html?ss=${encodeURIComponent(h.name+' '+ch.city)}&checkin=${checkIn}&checkout=${checkOut}&group_adults=${adultCount}&lang=en-gb&selected_currency=${hotelCurrency}" target="_blank" class="hotel-link">
+                      <a href="https://www.booking.com/search.html?ss=${encodeURIComponent(h.name+' '+ch.city)}&checkin=${checkIn}&checkout=${checkOut}&group_adults=${adultCount}&selected_currency=${hotelCurrency}" target="_blank" class="hotel-link">
                         <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Booking.com
                       </a>
-                      <a href="https://www.expedia.com.au/Hotel-Search?destination=${encodeURIComponent(h.name+' '+ch.city)}&startDate=${checkIn}&endDate=${checkOut}&adults=${adultCount}&currency=${hotelCurrency}" target="_blank" class="hotel-link">
-                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Expedia
+                      <a href="https://uk.trip.com/hotels/list?city=${encodeURIComponent(ch.city)}&checkin=${checkIn}&checkout=${checkOut}&adult=${adultCount}&curr=${hotelCurrency}&searchword=${encodeURIComponent(h.name)}" target="_blank" class="hotel-link">
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Trip.com
                       </a>
                     </div>
                   </div>
