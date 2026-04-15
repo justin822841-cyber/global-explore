@@ -422,7 +422,7 @@ footer{padding:32px 24px 24px;}.footer-main{flex-direction:column;gap:12px;text-
           <div class="field">
             <label><span class="en">Departing From</span><span class="zh">出发城市</span></label>
             <div class="autocomplete-wrapper">
-              <input type="text" id="originInput" autocomplete="off" placeholder-en="e.g. London, New York, Sydney…" placeholder-zh="例如：伦敦、纽约、悉尼…" placeholder="e.g. London, New York, Sydney…" oninput="handleCityInput(this,'originDropdown')" onkeydown="handleKeydown(event,'originDropdown')" onblur="closeDropdown('originDropdown',300)" required>
+              <input type="text" id="originInput" autocomplete="off" placeholder-en="e.g. London, New York, Sydney…" placeholder-zh="e.g. London, New York, Sydney…" placeholder="e.g. London, New York, Sydney…" oninput="handleCityInput(this,'originDropdown')" onkeydown="handleKeydown(event,'originDropdown')" onblur="closeDropdown('originDropdown',300)" required>
               <span class="field-error" id="originError"></span>
               <div class="autocomplete-dropdown" id="originDropdown"></div>
             </div>
@@ -433,7 +433,7 @@ footer{padding:32px 24px 24px;}.footer-main{flex-direction:column;gap:12px;text-
               <span class="label-note zh">多个城市用逗号分隔。还没确定？写"帮我推荐"</span>
             </label>
             <div class="autocomplete-wrapper">
-              <input type="text" id="destInput" autocomplete="off" placeholder-en="e.g. Tokyo, Paris, Bali — or — Help me choose" placeholder-zh="例如：东京、巴黎、巴厘岛，或写"帮我推荐"" placeholder="e.g. Tokyo, Paris, Bali — or — Help me choose" oninput="handleCityInput(this,'destDropdown')" onkeydown="handleKeydown(event,'destDropdown')" onblur="closeDropdown('destDropdown',300)" required>
+              <input type="text" id="destInput" autocomplete="off" placeholder-en="e.g. Tokyo, Paris, Bali — or — Help me choose" placeholder-zh="e.g. Tokyo, Paris, Bali — or — Help me choose" placeholder="e.g. Tokyo, Paris, Bali — or — Help me choose" oninput="handleCityInput(this,'destDropdown')" onkeydown="handleKeydown(event,'destDropdown')" onblur="closeDropdown('destDropdown',300)" required>
               <span class="field-error" id="destError"></span>
               <div class="autocomplete-dropdown" id="destDropdown"></div>
             </div>
@@ -840,7 +840,7 @@ function addAnchor(){
     <button type="button" class="anchor-remove" onclick="rmAnchor('anchor-${anchorCount}')">×</button>
     <div class="anchor-row">
       <div class="anchor-field"><label><span class="en">City / Location</span><span class="zh">城市/地点</span></label>
-        <input type="text" placeholder-en="e.g. Osaka, Tokyo" placeholder-zh="例如：大阪、东京" placeholder="${isZh?'例如：大阪、东京':'e.g. Osaka, Tokyo'}"></div>
+        <input type="text" placeholder-en="e.g. Osaka, Tokyo" placeholder-zh="e.g. Osaka, Tokyo" placeholder="${isZh?'例如：大阪、东京':'e.g. Osaka, Tokyo'}"></div>
       <div class="anchor-field"><label><span class="en">Date</span><span class="zh">日期</span></label>
         <input type="date"
           min="${document.getElementById('departDate')?.value||''}"
