@@ -455,6 +455,33 @@ footer{padding:32px 24px 24px;}.footer-main{flex-direction:column;gap:12px;text-
           </div>
         </div>
         <div class="field">
+          <label><span class="en">Return Flight From</span><span class="zh">回程出发城市</span>
+            <span class="label-note en">Usually same as destination — change if flying home from a different city</span>
+            <span class="label-note zh">通常与目的地相同 — 如从不同城市回程请修改</span>
+          </label>
+          <div class="chip-grid-2" style="margin-bottom:8px;">
+            <div class="chip single-select selected" id="returnSameChip" onclick="setReturnSame(true)">
+              <span class="en">Same as destination</span><span class="zh">与目的地相同</span>
+            </div>
+            <div class="chip single-select" id="returnDiffChip" onclick="setReturnSame(false)">
+              <span class="en">Different city</span><span class="zh">不同城市</span>
+            </div>
+          </div>
+          <div id="returnCityField" style="display:none;">
+            <div class="autocomplete-wrapper">
+              <input type="text" id="returnCityInput" autocomplete="off"
+                placeholder-en="e.g. San Francisco, New York…"
+                placeholder-zh="e.g. San Francisco, New York…"
+                placeholder="e.g. San Francisco, New York…"
+                oninput="handleCityInput(this,'returnCityDropdown')"
+                onkeydown="handleKeydown(event,'returnCityDropdown')"
+                onblur="closeDropdown('returnCityDropdown',300)">
+              <div class="autocomplete-dropdown" id="returnCityDropdown"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
           <label><span class="en">Have you visited this destination before?</span><span class="zh">你去过这个目的地吗？</span></label>
           <select id="visitedSelect" required>
             <option value="" data-en="Select" data-zh="请选择">Select</option>
@@ -1014,7 +1041,12 @@ function handleSubmit(e) {
   localStorage.setItem('ge_lang',     isZh ? 'zh' : 'en');
 
   const formData = {
-    origin, destination: dest, departDate: dateFrom, returnDate: dateTo,
+    origin,
+    destination: dest,
+    returnCity: document.getElementById('returnDiffChip')?.classList.contains('selected')
+      ? (document.getElementById('returnCityInput')?.value || dest)
+      : dest,
+    departDate: dateFrom, returnDate: dateTo,
     adults: counts.adults, children: counts.children,
     infants: counts.infants, seniors: counts.seniors,
     childAges:  document.getElementById('childAges')?.value  || '',
@@ -1043,6 +1075,21 @@ function handleSubmit(e) {
   localStorage.setItem('ge_formData', JSON.stringify(formData));
   const destClean = dest.replace(/\s*\([A-Z]+\)/,'').trim();
   window.location.href = `/loading.html?lang=${isZh?'zh':'en'}&dest=${encodeURIComponent(destClean)}`;
+}
+
+function setReturnSame(isSame) {
+  const sameChip = document.getElementById('returnSameChip');
+  const diffChip = document.getElementById('returnDiffChip');
+  const field    = document.getElementById('returnCityField');
+  if (isSame) {
+    sameChip.classList.add('selected');
+    diffChip.classList.remove('selected');
+    field.style.display = 'none';
+  } else {
+    sameChip.classList.remove('selected');
+    diffChip.classList.add('selected');
+    field.style.display = 'block';
+  }
 }
 
 function getAnchors() {
