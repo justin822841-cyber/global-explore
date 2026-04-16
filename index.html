@@ -1342,15 +1342,34 @@ function validateAnchorDate(el) {
   }
 }
 
-window.addEventListener('load', () => {
+window.addEventListener('load', async () => {
   detectCurrency();
   setHeaderHeight();
-  const user = localStorage.getItem('ge_user');
-  if (user) {
-    try {
-      updateAuthUI(JSON.parse(user).email);
+  // Check real Supabase session
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session?.user) {
+      localStorage.setItem('ge_user', JSON.stringify({ 
+        email: session.user.email, 
+        id: session.user.id 
+      }));
+      updateAuthUI(session.user.email);
       formUnlocked = true;
-    } catch(_) {}
+    } else {
+      // Fallback to localStorage
+      const user = localStorage.getItem('ge_user');
+      if (user) {
+        try {
+          updateAuthUI(JSON.parse(user).email);
+          formUnlocked = true;
+        } catch(_) {}
+      }
+    }
+  } catch(_) {
+    const user = localStorage.getItem('ge_user');
+    if (user) {
+      try { updateAuthUI(JSON.parse(user).email); formUnlocked = true; } catch(_) {}
+    }
   }
   restoreForm();
   updateEmailBlock();
