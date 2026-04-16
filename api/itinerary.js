@@ -199,6 +199,60 @@ STRICT RULE: Do NOT mention any city not explicitly in the day-by-day plan.
 The cities in this trip are: ${destination.replace(/\s*\([A-Z]+\)/,'').trim()}${anchors && anchors.length > 0 ? ' and ' + [...new Set(anchors.map(a => a.city))].join(', ') : ''}.
 Cover key highlights and what makes this trip special for this specific group.
 
+###BUDGET###
+Calculate realistic estimates in ${currency} for ALL ${totalPax} travellers for the ENTIRE trip.
+Use these formulas strictly:
+FLIGHTS: estimated per-person ${travelClass} fare × ${totalPax} people × 2 (return)
+ACCOMMODATION: estimated nightly rate × ${nights} nights (NOT multiplied by people)
+FOOD: realistic daily spend per person × ${nights} days × ${totalPax} people
+ACTIVITIES: entry fees + tours for ${totalPax} people over ${nights} days
+TRANSPORT: local transport + airport transfers for ${totalPax} people
+TOTAL: sum of all above
+
+CRITICAL OUTPUT RULE: Each line must contain ONLY a plain integer. No symbols, no commas, no text after the number.
+FLIGHTS: [integer only]
+ACCOMMODATION: [integer only]
+FOOD: [integer only]
+ACTIVITIES: [integer only]
+TRANSPORT: [integer only]
+TOTAL: [integer only]
+###FLIGHTPRICE###
+YOUR_DATES: [IMPORTANT: This field label must stay as "YOUR_DATES:" even in Chinese output]
+Write ONLY these 3 points in ${lang === 'zh' ? 'Chinese' : 'English'}. Do NOT start with an introductory sentence about "analysing dates":
+1. Origin school holidays: exact dates for ${origin} country/state near the travel window
+2. Destination school holidays: exact break dates for ${destination} area near the travel window
+3. One-sentence conclusion: low/typical/peak season and roughly how much more expensive vs shoulder season (%)
+Start directly with point 1. No preamble.
+LOW: [which months/periods have cheapest fares on this route and why]
+TYPICAL: [normal pricing periods for this route]
+PEAK: [most expensive periods — include: school holiday dates for both countries (be specific about months), peak summer/winter seasons, major public holidays. Note that periods coinciding with major international sporting events hosted at the destination (Olympics, FIFA World Cup, etc.) also see significant price spikes — mention this as a general pattern without specifying exact event dates]
+CALENDAR: [OUTPUT EXACTLY 30 date:level pairs, comma-separated, on a SINGLE LINE, NO spaces anywhere]
+Format: YYYY-MM-DD:level,YYYY-MM-DD:level,...
+Level must be: low OR typical OR peak
+Start date: 15 days before ${departDate}
+Example: 2026-06-01:typical,2026-06-02:low,2026-06-03:peak,2026-06-04:typical,2026-06-05:low
+WRONG: "2026-06-01: typical" (space after colon)
+WRONG: "typical 2026-06-02" (wrong order)
+WRONG: putting multiple entries on separate lines
+
+###HOTELS###
+CITY: [city name]
+NAME: [exact hotel name]
+LEVEL: ${accommodationLevel}
+PRICE: [number only, per night in ${currency}]
+LOCATION: [neighbourhood — X min walk to key attraction]
+WHY: [2 sentences specific to this group's needs and purpose]
+---
+NAME: [second hotel]
+PRICE: [number only]
+LOCATION: [neighbourhood]
+WHY: [2 sentences]
+---
+NAME: [third hotel]
+PRICE: [number only]
+LOCATION: [neighbourhood]
+WHY: [2 sentences]
+
 ###DAY###
 NUMBER: 1
 DATE: ${departDate}
@@ -233,43 +287,6 @@ ${mealFmt}
 ${tipsFmt}
 COST: [number only]
 
-###HOTELS###
-CITY: [city name]
-NAME: [exact hotel name]
-LEVEL: ${accommodationLevel}
-PRICE: [number only, per night in ${currency}]
-LOCATION: [neighbourhood — X min walk to key attraction]
-WHY: [2 sentences specific to this group's needs and purpose]
----
-NAME: [second hotel]
-PRICE: [number only]
-LOCATION: [neighbourhood]
-WHY: [2 sentences]
----
-NAME: [third hotel]
-PRICE: [number only]
-LOCATION: [neighbourhood]
-WHY: [2 sentences]
-
-###FLIGHTPRICE###
-YOUR_DATES: [IMPORTANT: This field label must stay as "YOUR_DATES:" even in Chinese output]
-Write ONLY these 3 points in ${lang === 'zh' ? 'Chinese' : 'English'}. Do NOT start with an introductory sentence about "analysing dates":
-1. Origin school holidays: exact dates for ${origin} country/state near the travel window
-2. Destination school holidays: exact break dates for ${destination} area near the travel window
-3. One-sentence conclusion: low/typical/peak season and roughly how much more expensive vs shoulder season (%)
-Start directly with point 1. No preamble.
-LOW: [which months/periods have cheapest fares on this route and why]
-TYPICAL: [normal pricing periods for this route]
-PEAK: [most expensive periods — include: school holiday dates for both countries (be specific about months), peak summer/winter seasons, major public holidays. Note that periods coinciding with major international sporting events hosted at the destination (Olympics, FIFA World Cup, etc.) also see significant price spikes — mention this as a general pattern without specifying exact event dates]
-CALENDAR: [OUTPUT EXACTLY 30 date:level pairs, comma-separated, on a SINGLE LINE, NO spaces anywhere]
-Format: YYYY-MM-DD:level,YYYY-MM-DD:level,...
-Level must be: low OR typical OR peak
-Start date: 15 days before ${departDate}
-Example: 2026-06-01:typical,2026-06-02:low,2026-06-03:peak,2026-06-04:typical,2026-06-05:low
-WRONG: "2026-06-01: typical" (space after colon)
-WRONG: "typical 2026-06-02" (wrong order)
-WRONG: putting multiple entries on separate lines
-
 ###FOOD###
 [MUST provide exactly 5 items. Format each on its own line:]
 [Dish name] at [Restaurant name] ([Neighbourhood]) — [one sentence why unmissable]
@@ -281,24 +298,7 @@ WRONG: putting multiple entries on separate lines
 ###TIPS###
 [One specific actionable tip per line]
 [6 tips total — transport apps, payment, cultural etiquette, booking, safety, family-specific if applicable]
-
-###BUDGET###
-Calculate realistic estimates in ${currency} for ALL ${totalPax} travellers for the ENTIRE trip.
-Use these formulas strictly:
-FLIGHTS: estimated per-person ${travelClass} fare × ${totalPax} people × 2 (return)
-ACCOMMODATION: estimated nightly rate × ${nights} nights (NOT multiplied by people)
-FOOD: realistic daily spend per person × ${nights} days × ${totalPax} people
-ACTIVITIES: entry fees + tours for ${totalPax} people over ${nights} days
-TRANSPORT: local transport + airport transfers for ${totalPax} people
-TOTAL: sum of all above
-
-CRITICAL OUTPUT RULE: Each line must contain ONLY a plain integer. No symbols, no commas, no text after the number.
-FLIGHTS: [integer only]
-ACCOMMODATION: [integer only]
-FOOD: [integer only]
-ACTIVITIES: [integer only]
-TRANSPORT: [integer only]
-TOTAL: [integer only]`;
+`;
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -532,7 +532,8 @@ function parseHotels(text) {
     const rest   = lines.slice(1).join('\n');
     const hotels = rest.split('---').map(h => {
       const name  = getField(h, 'NAME');
-      const price = parseFloat(getField(h, 'PRICE')) || 0;
+      const priceRaw = getField(h, 'PRICE') || '';
+      const price = parseFloat(priceRaw.replace(/[^0-9.]/g, '')) || 0;
       if (!name) return null;
       return {
         name,
