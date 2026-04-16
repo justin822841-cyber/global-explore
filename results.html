@@ -433,7 +433,7 @@ function render() {
 
     <div class="main" id="pdfContent">
       <div class="content">
-        ${renderFlights(origin, dest, dateFrom, dateTo, adults, formData)}
+        ${renderFlights(origin, dest, dateFrom, dateTo, adults, formData, adultsNum, childrenNum)}
         ${renderDays(itinerary.days||[])}
         ${renderHotels(itinerary.hotels||[], dateFrom, dateTo, adults, dest)}
         ${renderAffiliates(aff)}
@@ -468,7 +468,7 @@ function render() {
   }, 100);
 }
 
-function renderFlights(origin, dest, dateFrom, dateTo, adults, formData={}) {
+function renderFlights(origin, dest, dateFrom, dateTo, adults, formData={}, adultsNum=1, childrenNum=0) {
   const oCode = origin.match(/\(([A-Z]{3})\)/)?.[1] || origin.slice(0,3).toUpperCase();
   const dCode = dest.match(/\(([A-Z]{3})\)/)?.[1]   || dest.slice(0,3).toUpperCase();
   const oName = origin.replace(/\s*\([A-Z]+\)/,'').trim();
