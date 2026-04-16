@@ -252,11 +252,12 @@ LOCATION: [neighbourhood]
 WHY: [2 sentences]
 
 ###FLIGHTPRICE###
-YOUR_DATES: Analyse the specific travel dates ${departDate} to ${returnDate} for ${origin} to ${destination}. Cover ONLY these two points:
-1. ORIGIN school holidays: State the exact school holiday dates for the origin country/state during or near the travel window (e.g. "Victoria school holidays: June 27 - July 14")
-2. DESTINATION school holidays: State the exact school break dates for the destination area during or near the travel window
-3. Conclusion: Based on school holidays and seasonal demand, state whether these dates are low/typical/peak and roughly how much more expensive than shoulder season (%)
-DO NOT mention specific sporting events or concerts — only state school holidays and seasonal patterns you are certain about
+YOUR_DATES: [IMPORTANT: This field label must stay as "YOUR_DATES:" even in Chinese output]
+Analyse ${departDate} to ${returnDate} for ${origin} to ${destination}. Write in ${lang === 'zh' ? 'Chinese' : 'English'}:
+1. State exact school holiday dates for the ORIGIN country/state near the travel window
+2. State exact school break dates for the DESTINATION area near the travel window  
+3. Conclude whether dates are low/typical/peak and roughly how much more expensive vs shoulder season (%)
+DO NOT mention specific sporting events — only school holidays and seasonal demand you are certain about
 LOW: [which months/periods have cheapest fares on this route and why]
 TYPICAL: [normal pricing periods for this route]
 PEAK: [most expensive periods — include: school holiday dates for both countries (be specific about months), peak summer/winter seasons, major public holidays. Note that periods coinciding with major international sporting events hosted at the destination (Olympics, FIFA World Cup, etc.) also see significant price spikes — mention this as a general pattern without specifying exact event dates]
@@ -278,14 +279,22 @@ WRONG: putting multiple entries on separate lines
 [6 tips total — transport apps, payment, cultural etiquette, booking, safety, family-specific if applicable]
 
 ###BUDGET###
-Calculate realistic estimates for ALL ${totalPax} travellers combined for entire trip in ${currency}.
-CRITICAL: Each field must contain ONLY a plain number. No currency symbols, no commas, no text. Just digits.
-FLIGHTS: [number only — e.g. 18000]
-ACCOMMODATION: [number only — e.g. 12000]
-FOOD: [number only — e.g. 6000]
-ACTIVITIES: [number only — e.g. 4000]
-TRANSPORT: [number only — e.g. 2000]
-TOTAL: [number only — must equal sum of above, e.g. 42000]`;
+Calculate realistic estimates in ${currency} for ALL ${totalPax} travellers for the ENTIRE trip.
+Use these formulas strictly:
+FLIGHTS: estimated per-person ${travelClass} fare × ${totalPax} people × 2 (return)
+ACCOMMODATION: estimated nightly rate × ${nights} nights (NOT multiplied by people)
+FOOD: realistic daily spend per person × ${nights} days × ${totalPax} people
+ACTIVITIES: entry fees + tours for ${totalPax} people over ${nights} days
+TRANSPORT: local transport + airport transfers for ${totalPax} people
+TOTAL: sum of all above
+
+CRITICAL OUTPUT RULE: Each line must contain ONLY a plain integer. No symbols, no commas, no text after the number.
+FLIGHTS: [integer only]
+ACCOMMODATION: [integer only]
+FOOD: [integer only]
+ACTIVITIES: [integer only]
+TRANSPORT: [integer only]
+TOTAL: [integer only]`;
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
