@@ -251,7 +251,11 @@ LOCATION: [neighbourhood]
 WHY: [2 sentences]
 
 ###FLIGHTPRICE###
-YOUR_DATES: [1-2 sentences: are the travel dates low/typical/peak for ${origin} to ${destination} and why, including any known major events during this period]
+YOUR_DATES: Analyse the specific travel dates ${departDate} to ${returnDate} for ${origin} to ${destination}. Must cover in this order:
+1. ORIGIN school holidays: State the exact school holiday dates for ${origin.replace(/\s*\([A-Z]+\)/,'').trim()} during or near the travel window (e.g. "Victoria school holidays run June 27 - July 14")
+2. DESTINATION school holidays: State the exact school holiday/summer break dates for ${destination.replace(/\s*\([A-Z]+\)/,'').trim()} area during or near the travel window
+3. Major events: Name any specific major events (World Cup, Olympics, major festivals) happening at the destination during these dates
+4. Conclusion: Based on the above, state whether these dates are low/typical/peak and by roughly how much compared to shoulder season
 LOW: [which months/periods have cheapest fares on this route and why]
 TYPICAL: [normal pricing periods for this route]
 PEAK: [most expensive periods — include: school holiday dates for origin and destination countries, major global events like World Cup/Olympics near the travel dates, destination public holidays. Be specific about dates and events you know about]
