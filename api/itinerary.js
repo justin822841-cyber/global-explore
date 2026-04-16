@@ -156,9 +156,10 @@ TRAVEL DAY RULES — follow these precisely:
    - The return flight departs from: ${returnCity && returnCity !== destination ? returnCity.replace(/\s*\([A-Z]+\)/, '').trim() : destination.replace(/\s*\([A-Z]+\)/, '').trim().split(',')[0].trim()}
    - If this is different from other cities visited, ensure the itinerary brings the traveller back to this city BEFORE the last day
    - MORNING: gentle final activity near the departure city, breakfast, pack and check out
-   - AFTERNOON: transfer to airport — allow 3 hours before international departure
-   - State airport transfer cost and time
+   - AFTERNOON: transfer to airport — allow 3 hours before international departure, state rideshare cost
    - EVENING: on the plane back to ${origin}
+   - MEALS: still provide breakfast and lunch options (airport dining), dinner = in-flight meal
+   - TIPS: airport check-in timing and duty-free tips
 
 4. ANCHOR POINT TRAVEL DAYS:
    For each anchor in the itinerary that requires travel from the previous city:
@@ -251,15 +252,22 @@ LOCATION: [neighbourhood]
 WHY: [2 sentences]
 
 ###FLIGHTPRICE###
-YOUR_DATES: Analyse the specific travel dates ${departDate} to ${returnDate} for ${origin} to ${destination}. Must cover in this order:
-1. ORIGIN school holidays: State the exact school holiday dates for ${origin.replace(/\s*\([A-Z]+\)/,'').trim()} during or near the travel window (e.g. "Victoria school holidays run June 27 - July 14")
-2. DESTINATION school holidays: State the exact school holiday/summer break dates for ${destination.replace(/\s*\([A-Z]+\)/,'').trim()} area during or near the travel window
-3. Major events: Name any specific major events (World Cup, Olympics, major festivals) happening at the destination during these dates
-4. Conclusion: Based on the above, state whether these dates are low/typical/peak and by roughly how much compared to shoulder season
+YOUR_DATES: Analyse the specific travel dates ${departDate} to ${returnDate} for ${origin} to ${destination}. Cover ONLY these two points:
+1. ORIGIN school holidays: State the exact school holiday dates for the origin country/state during or near the travel window (e.g. "Victoria school holidays: June 27 - July 14")
+2. DESTINATION school holidays: State the exact school break dates for the destination area during or near the travel window
+3. Conclusion: Based on school holidays and seasonal demand, state whether these dates are low/typical/peak and roughly how much more expensive than shoulder season (%)
+DO NOT mention specific sporting events or concerts — only state school holidays and seasonal patterns you are certain about
 LOW: [which months/periods have cheapest fares on this route and why]
 TYPICAL: [normal pricing periods for this route]
-PEAK: [most expensive periods — include: school holiday dates for origin and destination countries, major global events like World Cup/Olympics near the travel dates, destination public holidays. Be specific about dates and events you know about]
-CALENDAR: 2026-06-01:typical,2026-06-02:low,2026-06-03:low,... (EXACTLY this format — 30 comma-separated YYYY-MM-DD:level pairs on ONE line, NO spaces, NO line breaks, NO extra text. level must be one of: low, typical, peak. Start 15 days before ${departDate}. Example of correct format: 2026-05-30:low,2026-05-31:low,2026-06-01:typical,2026-06-02:peak,2026-06-03:typical)
+PEAK: [most expensive periods — include: school holiday dates for both countries (be specific about months), peak summer/winter seasons, major public holidays. Note that periods coinciding with major international sporting events hosted at the destination (Olympics, FIFA World Cup, etc.) also see significant price spikes — mention this as a general pattern without specifying exact event dates]
+CALENDAR: [OUTPUT EXACTLY 30 date:level pairs, comma-separated, on a SINGLE LINE, NO spaces anywhere]
+Format: YYYY-MM-DD:level,YYYY-MM-DD:level,...
+Level must be: low OR typical OR peak
+Start date: 15 days before ${departDate}
+Example: 2026-06-01:typical,2026-06-02:low,2026-06-03:peak,2026-06-04:typical,2026-06-05:low
+WRONG: "2026-06-01: typical" (space after colon)
+WRONG: "typical 2026-06-02" (wrong order)
+WRONG: putting multiple entries on separate lines
 
 ###FOOD###
 [Name] at [Restaurant] ([Neighbourhood]) — [one sentence why unmissable]
@@ -270,13 +278,14 @@ CALENDAR: 2026-06-01:typical,2026-06-02:low,2026-06-03:low,... (EXACTLY this for
 [6 tips total — transport apps, payment, cultural etiquette, booking, safety, family-specific if applicable]
 
 ###BUDGET###
-Calculate realistic estimates for ALL ${totalPax} travellers combined for the entire trip in ${currency}:
-FLIGHTS: [return flights for ${adults} adults + ${children||0} children in ${travelClass} class × estimated per-person fare]
-ACCOMMODATION: [nightly rate × ${nights} nights — independent of group size]
-FOOD: [realistic daily food cost per person × ${nights} days × ${totalPax} people]
-ACTIVITIES: [entry fees, tours, experiences for ${totalPax} people over ${nights} days]
-TRANSPORT: [local transport, airport transfers, inter-city travel for ${totalPax} people]
-TOTAL: [sum of all above, must be higher for more people — ${totalPax} people total]`;
+Calculate realistic estimates for ALL ${totalPax} travellers combined for entire trip in ${currency}.
+CRITICAL: Each field must contain ONLY a plain number. No currency symbols, no commas, no text. Just digits.
+FLIGHTS: [number only — e.g. 18000]
+ACCOMMODATION: [number only — e.g. 12000]
+FOOD: [number only — e.g. 6000]
+ACTIVITIES: [number only — e.g. 4000]
+TRANSPORT: [number only — e.g. 2000]
+TOTAL: [number only — must equal sum of above, e.g. 42000]`;
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -553,12 +562,12 @@ function parseBudget(text, currency) {
     }
     return 0;
   }
-  const flights       = getBudgetField(text, 'FLIGHTS', 'Flight', 'Flights');
-  const accommodation = getBudgetField(text, 'ACCOMMODATION', 'Accommodation', 'Hotel', 'Hotels');
-  const food          = getBudgetField(text, 'FOOD', 'Food', 'Dining', 'Meals');
-  const activities    = getBudgetField(text, 'ACTIVITIES', 'Activities', 'Activity', 'Entertainment');
-  const transport     = getBudgetField(text, 'TRANSPORT', 'Transport', 'Transportation', 'Local transport');
-  const total         = getBudgetField(text, 'TOTAL', 'Total') || (flights + accommodation + food + activities + transport);
+  const flights       = getBudgetField(text, 'FLIGHTS', 'Flight', 'Flights', '机票');
+  const accommodation = getBudgetField(text, 'ACCOMMODATION', 'Accommodation', 'Hotel', 'Hotels', '住宿');
+  const food          = getBudgetField(text, 'FOOD', 'Food', 'Dining', 'Meals', '餐饮', '饮食');
+  const activities    = getBudgetField(text, 'ACTIVITIES', 'Activities', 'Activity', 'Entertainment', '活动');
+  const transport     = getBudgetField(text, 'TRANSPORT', 'Transport', 'Transportation', 'Local transport', '交通');
+  const total         = getBudgetField(text, 'TOTAL', 'Total', '总计', '合计') || (flights + accommodation + food + activities + transport);
   return { flights, accommodation, food, activities, transport, total, currency };
 }
 
