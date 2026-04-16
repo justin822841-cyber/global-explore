@@ -476,7 +476,12 @@ function renderFlights(origin, dest, dateFrom, dateTo, adults, formData={}) {
   const depDate = dateFrom ? dateFrom.replace(/-/g,'') : '';
 
   // Build search links
-  const aviasalesUrl  = `https://www.aviasales.com/search/${oCode}${depDate}${dCode}${adults}?marker=717078`;
+  const aviasalesUrl  = (() => {
+    const adNum = adultsNum || 1;
+    const chNum = childrenNum || 0;
+    const base = `https://www.aviasales.com/search/${oCode}${depDate}${dCode}${adNum}?marker=717078`;
+    return chNum > 0 ? base + `&children=${chNum}` : base;
+  })();
   const bookingUrl    = `https://www.booking.com/flights/search.html?from=${oCode}&to=${dCode}&depart=${dateFrom}&adults=${adults}&lang=en-gb`;
   const tripUrl       = `https://uk.trip.com/flights/search?dcity=${oCode}&acity=${dCode}&ddate=${dateFrom}&adult=${adults}&curr=${currency}`;
   const googleUrl     = `https://www.google.com/travel/flights?q=flights+from+${encodeURIComponent(oName)}+to+${encodeURIComponent(dName)}+on+${dateFrom}`;
