@@ -1094,7 +1094,14 @@ async function loadTrip(id) {
 }
 
 
-window.addEventListener('load', async () => { init(); await initNav(); });
+window.addEventListener('load', async () => {
+  init();
+  await initNav();
+  // Auto-open history panel if redirected from index
+  if (new URLSearchParams(window.location.search).get('openHistory') === '1') {
+    openHistory();
+  }
+});
 </script>
 </body>
 </html>
