@@ -970,32 +970,31 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // NAV — show user avatar if logged in
-function initNav() {
-  const userRaw = localStorage.getItem('ge_user');
-  if (!userRaw) return;
+async function initNav() {
   try {
-    const user = JSON.parse(userRaw);
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session?.user) return;
     const nav = document.querySelector('.nav-actions');
     if (!nav) return;
-    const initial = user.email ? user.email[0].toUpperCase() : '?';
-    // Add avatar button before existing buttons
+    const initial = session.user.email ? session.user.email[0].toUpperCase() : '?';
     const avatarBtn = document.createElement('button');
     avatarBtn.className = 'user-avatar';
-    avatarBtn.title = user.email;
+    avatarBtn.title = session.user.email;
     avatarBtn.textContent = initial;
     avatarBtn.onclick = openHistory;
     nav.insertBefore(avatarBtn, nav.firstChild);
+    // Sync localStorage
+    localStorage.setItem('ge_user', JSON.stringify({ email: session.user.email, id: session.user.id }));
   } catch(_) {}
 }
 
 // SAVE itinerary to Supabase
 async function saveItinerary() {
-  const userRaw = localStorage.getItem('ge_user');
-  if (!userRaw) return; // not logged in, skip
   try {
-    const user = JSON.parse(userRaw);
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session?.user) return; // not logged in
     const { error } = await sb.from('itineraries').insert({
-      user_id:     user.id,
+      user_id:     session.user.id,
       origin:      localStorage.getItem('ge_origin') || '',
       destination: localStorage.getItem('ge_dest')   || '',
       date_from:   localStorage.getItem('ge_dateFrom') || '',
@@ -1004,7 +1003,7 @@ async function saveItinerary() {
       data:        JSON.parse(localStorage.getItem('ge_results') || '{}')
     });
     if (error) console.error('Save error:', error.message);
-    else console.log('Itinerary saved');
+    else console.log('Itinerary saved ✓', session.user.email);
   } catch(e) { console.error('Save failed:', e); }
 }
 
@@ -1021,9 +1020,8 @@ function closeHistory() {
 
 async function loadHistory() {
   const listEl = document.getElementById('historyList');
-  const isZh = lang === 'zh';
-  const userRaw = localStorage.getItem('ge_user');
-  if (!userRaw) {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session?.user) {
     listEl.innerHTML = `<div class="history-empty"><span class="en">Sign in to see your saved trips</span><span class="zh">登录后查看已保存的行程</span></div>`;
     return;
   }
@@ -1032,6 +1030,7 @@ async function loadHistory() {
     const { data, error } = await sb
       .from('itineraries')
       .select('id,origin,destination,date_from,date_to,currency,created_at,data')
+      .eq('user_id', session.user.id)
       .order('created_at', { ascending: false })
       .limit(20);
 
