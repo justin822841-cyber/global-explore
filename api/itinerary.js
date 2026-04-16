@@ -253,11 +253,11 @@ WHY: [2 sentences]
 
 ###FLIGHTPRICE###
 YOUR_DATES: [IMPORTANT: This field label must stay as "YOUR_DATES:" even in Chinese output]
-Analyse ${departDate} to ${returnDate} for ${origin} to ${destination}. Write in ${lang === 'zh' ? 'Chinese' : 'English'}:
-1. State exact school holiday dates for the ORIGIN country/state near the travel window
-2. State exact school break dates for the DESTINATION area near the travel window  
-3. Conclude whether dates are low/typical/peak and roughly how much more expensive vs shoulder season (%)
-DO NOT mention specific sporting events — only school holidays and seasonal demand you are certain about
+Write ONLY these 3 points in ${lang === 'zh' ? 'Chinese' : 'English'}. Do NOT start with an introductory sentence about "analysing dates":
+1. Origin school holidays: exact dates for ${origin} country/state near the travel window
+2. Destination school holidays: exact break dates for ${destination} area near the travel window
+3. One-sentence conclusion: low/typical/peak season and roughly how much more expensive vs shoulder season (%)
+Start directly with point 1. No preamble.
 LOW: [which months/periods have cheapest fares on this route and why]
 TYPICAL: [normal pricing periods for this route]
 PEAK: [most expensive periods — include: school holiday dates for both countries (be specific about months), peak summer/winter seasons, major public holidays. Note that periods coinciding with major international sporting events hosted at the destination (Olympics, FIFA World Cup, etc.) also see significant price spikes — mention this as a general pattern without specifying exact event dates]
@@ -271,8 +271,12 @@ WRONG: "typical 2026-06-02" (wrong order)
 WRONG: putting multiple entries on separate lines
 
 ###FOOD###
-[Name] at [Restaurant] ([Neighbourhood]) — [one sentence why unmissable]
-[5 items total]
+[MUST provide exactly 5 items. Format each on its own line:]
+[Dish name] at [Restaurant name] ([Neighbourhood]) — [one sentence why unmissable]
+[Dish name] at [Restaurant name] ([Neighbourhood]) — [one sentence why unmissable]
+[Dish name] at [Restaurant name] ([Neighbourhood]) — [one sentence why unmissable]
+[Dish name] at [Restaurant name] ([Neighbourhood]) — [one sentence why unmissable]
+[Dish name] at [Restaurant name] ([Neighbourhood]) — [one sentence why unmissable]
 
 ###TIPS###
 [One specific actionable tip per line]
@@ -554,29 +558,39 @@ function parseList(text) {
 }
 
 function parseBudget(text, currency) {
-  // Try multiple field name variations Claude might use
-  function getBudgetField(t, ...keys) {
+  if (!text) return { flights:0, accommodation:0, food:0, activities:0, transport:0, total:0, currency };
+
+  // Extract first number found on same line as key (very aggressive)
+  function extractNum(t, ...keys) {
     for (const key of keys) {
-      const val = parseFloat(getField(t, key));
-      if (val > 0) return val;
-    }
-    // Also try extracting any number after the key on the same line
-    for (const key of keys) {
-      const re = new RegExp(key + '[^\\d]*(\\d[\\d,]*)', 'im');
-      const m = t.match(re);
-      if (m) {
-        const val = parseFloat(m[1].replace(/,/g, ''));
-        if (val > 0) return val;
+      // Try exact field match first
+      const lines = t.split('\n');
+      for (const line of lines) {
+        const lineLower = line.toLowerCase();
+        const keyLower = key.toLowerCase();
+        if (lineLower.includes(keyLower + ':') || lineLower.startsWith(keyLower)) {
+          // Extract all numbers from this line
+          const nums = line.match(/\d[\d,.]*/g);
+          if (nums) {
+            for (const n of nums) {
+              const val = parseFloat(n.replace(/,/g, ''));
+              if (val >= 100) return val; // budget values should be at least 100
+            }
+          }
+        }
       }
     }
     return 0;
   }
-  const flights       = getBudgetField(text, 'FLIGHTS', 'Flight', 'Flights', '机票');
-  const accommodation = getBudgetField(text, 'ACCOMMODATION', 'Accommodation', 'Hotel', 'Hotels', '住宿');
-  const food          = getBudgetField(text, 'FOOD', 'Food', 'Dining', 'Meals', '餐饮', '饮食');
-  const activities    = getBudgetField(text, 'ACTIVITIES', 'Activities', 'Activity', 'Entertainment', '活动');
-  const transport     = getBudgetField(text, 'TRANSPORT', 'Transport', 'Transportation', 'Local transport', '交通');
-  const total         = getBudgetField(text, 'TOTAL', 'Total', '总计', '合计') || (flights + accommodation + food + activities + transport);
+
+  const flights       = extractNum(text, 'FLIGHTS', 'flights', '机票', 'Flight');
+  const accommodation = extractNum(text, 'ACCOMMODATION', 'accommodation', '住宿', 'Hotel', 'Accommodation');
+  const food          = extractNum(text, 'FOOD', 'food', '餐饮', '饮食', 'Dining', 'Meals');
+  const activities    = extractNum(text, 'ACTIVITIES', 'activities', '活动', 'Activity', 'Entertainment');
+  const transport     = extractNum(text, 'TRANSPORT', 'transport', '交通', 'Transportation');
+  const totalRaw      = extractNum(text, 'TOTAL', 'total', '总计', '合计', 'Total');
+  const total         = totalRaw || (flights + accommodation + food + activities + transport);
+
   return { flights, accommodation, food, activities, transport, total, currency };
 }
 
