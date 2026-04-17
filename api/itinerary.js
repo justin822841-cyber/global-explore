@@ -79,12 +79,22 @@ export default async function handler(req, res) {
   let contentDepthNote, morningFmt, afternoonFmt, eveningFmt, mealFmt, tipsFmt;
 
   if (nights <= 14) {
-    contentDepthNote = 'CONTENT DEPTH: COMPACT — 1-2 sentences per time slot, 2 meal options, 1-2 tips per day';
-    morningFmt   = 'MORNING: [1-2 sentences — venue and key activity]';
-    afternoonFmt = 'AFTERNOON: [1-2 sentences — venue and activity]';
-    eveningFmt   = 'EVENING: [1-2 sentences — activity or dining]';
-    mealFmt      = 'BREAKFAST: Option 1: [Name] ([area]) — [brief description]. Option 2: [Name] — [brief description]\nLUNCH: Option 1: [Name] ([area]) — [description]. Option 2: [Name] — [description]\nDINNER: Option 1: [Name] ([area]) — [description]. Option 2: [Name] — [description]';
-    tipsFmt      = 'TIPS: Tip 1: [specific tip]. Tip 2: [specific tip]';
+    if (lang === 'zh') {
+      // Chinese uses more tokens per character — use stricter 1 sentence
+      contentDepthNote = 'CONTENT DEPTH: COMPACT (Chinese) — exactly 1 sentence per time slot, 2 meal options, 1 tip per day. Keep each sentence under 40 Chinese characters.';
+      morningFmt   = 'MORNING: [1 sentence — venue and main activity, under 40 Chinese characters]';
+      afternoonFmt = 'AFTERNOON: [1 sentence — venue and activity, under 40 Chinese characters]';
+      eveningFmt   = 'EVENING: [1 sentence — activity or dining, under 40 Chinese characters]';
+      mealFmt      = 'BREAKFAST: Option 1: [Name] — [brief note]. Option 2: [Name] — [brief note]\nLUNCH: Option 1: [Name] — [brief note]. Option 2: [Name] — [brief note]\nDINNER: Option 1: [Name] — [brief note]. Option 2: [Name] — [brief note]';
+      tipsFmt      = 'TIPS: [1 practical tip, under 40 Chinese characters]';
+    } else {
+      contentDepthNote = 'CONTENT DEPTH: COMPACT — 1-2 sentences per time slot, 2 meal options, 1-2 tips per day';
+      morningFmt   = 'MORNING: [1-2 sentences — venue and key activity]';
+      afternoonFmt = 'AFTERNOON: [1-2 sentences — venue and activity]';
+      eveningFmt   = 'EVENING: [1-2 sentences — activity or dining]';
+      mealFmt      = 'BREAKFAST: Option 1: [Name] ([area]) — [brief description]. Option 2: [Name] — [brief description]\nLUNCH: Option 1: [Name] ([area]) — [description]. Option 2: [Name] — [description]\nDINNER: Option 1: [Name] ([area]) — [description]. Option 2: [Name] — [description]';
+      tipsFmt      = 'TIPS: Tip 1: [specific tip]. Tip 2: [specific tip]';
+    }
   } else if (nights <= 21) {
     contentDepthNote = 'CONTENT DEPTH: BRIEF — 1 sentence per time slot, 2 meal options, 1 tip';
     morningFmt   = 'MORNING: [1 sentence — venue and main activity]';
@@ -267,7 +277,7 @@ FINAL REMINDER: Output ALL ${nights + 1} DAY sections. Do not skip any day. Do n
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-5',
-        max_tokens: 10000,
+        max_tokens: 16000,
         stream: true,
         system: [
           {
