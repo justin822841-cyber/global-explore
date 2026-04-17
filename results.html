@@ -394,7 +394,9 @@ function render() {
   const seniorsNum  = parseInt(formData.seniors  || 0);
   const totalTravellers = adultsNum + childrenNum + infantsNum + seniorsNum;
   const adults = String(totalTravellers);
-  const nights   = itinerary.days ? Math.max(itinerary.days.length - 1, 1) : 0;
+  const nights   = dateFrom && dateTo 
+    ? Math.max(1, Math.round((new Date(dateTo) - new Date(dateFrom)) / 86400000))
+    : (itinerary.days ? Math.max(itinerary.days.length - 1, 1) : 0);
   const aff      = itinerary.affiliateRecommendations || {};
 
   document.getElementById('appContent').innerHTML = `
@@ -405,8 +407,8 @@ function render() {
           <div class="summary-eyebrow zh">你的专属行程方案</div>
           <h1 class="summary-title en">${origin} → <em>${dest}</em></h1>
           <h1 class="summary-title zh">${origin} → <em>${dest}</em></h1>
-          <p class="summary-subtitle en">${fmtRange(dateFrom,dateTo,'en')} · ${itinerary.days?.length||0} days · ${currency}</p>
-          <p class="summary-subtitle zh">${fmtRange(dateFrom,dateTo,'zh')} · ${itinerary.days?.length||0} 天 · ${currency}</p>
+          <p class="summary-subtitle en">${fmtRange(dateFrom,dateTo,'en')} · ${nights+1} days · ${currency}</p>
+          <p class="summary-subtitle zh">${fmtRange(dateFrom,dateTo,'zh')} · ${nights+1} 天 · ${currency}</p>
           <div class="summary-tags">
             <div class="summary-tag">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
