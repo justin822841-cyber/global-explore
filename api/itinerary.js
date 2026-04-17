@@ -75,54 +75,35 @@ export default async function handler(req, res) {
     ? 'Been once: skip obvious tourist spots, go deeper into local neighbourhoods and second-tier attractions.'
     : 'Multiple visits: avoid all tourist trails, focus on hyper-local experiences and hidden gems only.';
 
-  // FIX 2: COMPACT depth tier for 11-14 nights to prevent token truncation
+  // Content depth: ≤14 COMPACT, 15-21 BRIEF, 22+ MINIMAL
   let contentDepthNote, morningFmt, afternoonFmt, eveningFmt, mealFmt, tipsFmt;
 
-  if (nights <= 7) {
-    contentDepthNote = 'CONTENT DEPTH: FULL — 2 sentences per time slot, 2 meal options per meal, 2 tips per day';
-    morningFmt   = 'MORNING: [2 sentences — specific venue, what to do, insider tip]';
-    afternoonFmt = 'AFTERNOON: [2 sentences — specific venue, what to do]';
-    eveningFmt   = 'EVENING: [2 sentences — atmosphere, what to do, where to go]';
-    mealFmt      = 'BREAKFAST: Option 1: [Name] ([area]) — [description, price ' + currSym + '/person]. Option 2: [Name] — [description]\nLUNCH: Option 1: [Name] ([area]) — [description]. Option 2: [Name] — [description]\nDINNER: Option 1: [Name] ([area]) — [description]. Option 2: [Name] — [description]';
-    tipsFmt      = 'TIPS: Tip 1: [transport or booking tip]. Tip 2: [money-saving or timing tip]';
-  } else if (nights <= 10) {
-    contentDepthNote = 'CONTENT DEPTH: STANDARD — 1-2 sentences per time slot, 2 meal options, 1-2 tips';
+  if (nights <= 14) {
+    contentDepthNote = 'CONTENT DEPTH: COMPACT — 1-2 sentences per time slot, 2 meal options, 1-2 tips per day';
     morningFmt   = 'MORNING: [1-2 sentences — venue and key activity]';
     afternoonFmt = 'AFTERNOON: [1-2 sentences — venue and activity]';
     eveningFmt   = 'EVENING: [1-2 sentences — activity or dining]';
     mealFmt      = 'BREAKFAST: Option 1: [Name] ([area]) — [brief description]. Option 2: [Name] — [brief description]\nLUNCH: Option 1: [Name] ([area]) — [description]. Option 2: [Name] — [description]\nDINNER: Option 1: [Name] ([area]) — [description]. Option 2: [Name] — [description]';
     tipsFmt      = 'TIPS: Tip 1: [specific tip]. Tip 2: [specific tip]';
-  } else if (nights <= 14) {
-    contentDepthNote = 'CONTENT DEPTH: COMPACT — 1 sentence per time slot, 2 meal options, 1 tip. Keep each sentence under 25 words.';
-    morningFmt   = 'MORNING: [1 sentence — venue and main activity, under 25 words]';
-    afternoonFmt = 'AFTERNOON: [1 sentence — venue and activity, under 25 words]';
-    eveningFmt   = 'EVENING: [1 sentence — activity or dining venue, under 25 words]';
-    mealFmt      = 'BREAKFAST: Option 1: [Name] — [brief note]. Option 2: [Name] — [brief note]\nLUNCH: Option 1: [Name] — [brief note]. Option 2: [Name] — [brief note]\nDINNER: Option 1: [Name] — [brief note]. Option 2: [Name] — [brief note]';
-    tipsFmt      = 'TIPS: [1 practical tip under 20 words]';
   } else if (nights <= 21) {
-    contentDepthNote = 'CONTENT DEPTH: BRIEF — 1 short sentence per time slot (under 20 words), 1 meal option per meal, 1 tip every 2 days';
+    contentDepthNote = 'CONTENT DEPTH: BRIEF — 1 sentence per time slot, 2 meal options, 1 tip';
+    morningFmt   = 'MORNING: [1 sentence — venue and main activity]';
+    afternoonFmt = 'AFTERNOON: [1 sentence — venue and activity]';
+    eveningFmt   = 'EVENING: [1 sentence — activity or dining]';
+    mealFmt      = 'BREAKFAST: Option 1: [Name] — [brief note]. Option 2: [Name] — [brief note]\nLUNCH: Option 1: [Name] — [brief note]. Option 2: [Name] — [brief note]\nDINNER: Option 1: [Name] — [brief note]. Option 2: [Name] — [brief note]';
+    tipsFmt      = 'TIPS: [1 practical tip]';
+  } else {
+    contentDepthNote = 'CONTENT DEPTH: MINIMAL — 1 short sentence per time slot, 1 meal option per meal, 1 tip per 2 days';
     morningFmt   = 'MORNING: [1 short sentence]';
     afternoonFmt = 'AFTERNOON: [1 short sentence]';
     eveningFmt   = 'EVENING: [1 short sentence]';
     mealFmt      = 'BREAKFAST: [Name] — [3-word description]\nLUNCH: [Name] — [3-word description]\nDINNER: [Name] — [3-word description]';
     tipsFmt      = 'TIPS: [1 short tip, or omit]';
-  } else {
-    contentDepthNote = 'CONTENT DEPTH: MINIMAL — 1 phrase per time slot (under 15 words), 1 meal per day, no tips';
-    morningFmt   = 'MORNING: [1 short phrase]';
-    afternoonFmt = 'AFTERNOON: [1 short phrase]';
-    eveningFmt   = 'EVENING: [1 short phrase]';
-    mealFmt      = 'BREAKFAST: [Name] — [3-word description]';
-    tipsFmt      = 'TIPS: [omit]';
   }
 
   const langInstruction = lang === 'zh'
     ? 'Write ALL content in Simplified Chinese (简体中文). Every word of every description, tip, meal recommendation, event, and analysis must be in Chinese. Restaurant names should include Chinese translation in brackets. Keep place names in original language followed by Chinese in brackets.'
     : 'Write all content in English.';
-
-  // FIX 1 & 3: Split prompt into STATIC (cached system) + DYNAMIC (user message)
-  // Static = all rules and format instructions → cache hits on every request
-  // Dynamic = trip-specific data → changes every request, not cached
-  // FIX 3: BUDGET and FLIGHTPRICE appear BEFORE ###DAY### to prevent truncation
 
   const systemPrompt = `OUTPUT LANGUAGE: ${langInstruction}
 
@@ -140,6 +121,8 @@ Paragraph 2 (our recommendation, on a new line, clearly separated):
 "— Our [LEVEL] recommendation: [Hotel Name] — [one sentence: location benefit and one standout feature specific to this group's needs]"
 
 IMPORTANT: Paragraph 1 must work for ANY hotel in ANY city. Never assume location. Keep two paragraphs clearly separated.
+
+COMPLETENESS RULE (CRITICAL): You MUST output ALL days of the trip, from Day 1 to the last day. If the trip is 14 nights, output exactly 14 DAY sections. Do not stop early. Do not truncate. Keep content concise if needed but ALL days must be present.
 
 CRITICAL MARKER RULE: ALL section markers and field labels (###DAY###, NUMBER:, DATE:, CITY:, MORNING:, AFTERNOON:, EVENING:, LATE_ARRIVAL:, TYPICAL_ARRIVAL:, TIPS:, EVENTS:, COST:, NAME:, PRICE:, LOCATION:, WHY:, LEVEL:, YOUR_DATES:, LOW:, TYPICAL:, PEAK:, CALENDAR:, FLIGHTS:, ACCOMMODATION:, FOOD:, ACTIVITIES:, TRANSPORT:, TOTAL:, BREAKFAST:, LUNCH:, DINNER:) MUST ALWAYS be written in ENGLISH regardless of output language. Only the VALUES after the colon should be in Chinese when Chinese is selected.
 
@@ -175,6 +158,7 @@ PEAK: [most expensive periods — school holidays both countries, peak seasons, 
 CALENDAR: [EXACTLY 30 date:level pairs, comma-separated, SINGLE LINE, NO spaces. Format: YYYY-MM-DD:level where level=low/typical/peak. Start 15 days before departure]
 
 ###HOTELS###
+[IMPORTANT: Maximum 2 hotels per city. For each city, output CITY: then exactly 2 hotels separated by ---]
 CITY: [city name]
 NAME: [exact hotel name]
 LEVEL: [accommodation level]
@@ -183,11 +167,6 @@ LOCATION: [neighbourhood — X min walk to key attraction]
 WHY: [2 sentences specific to this group's needs]
 ---
 NAME: [second hotel]
-PRICE: [number only]
-LOCATION: [neighbourhood]
-WHY: [2 sentences]
----
-NAME: [third hotel]
 PRICE: [number only]
 LOCATION: [neighbourhood]
 WHY: [2 sentences]
@@ -209,7 +188,7 @@ TIPS: Tip 1: [jet lag advice for this timezone]. Tip 2: [airport to hotel cost a
 EVENTS: [2-3 notable events/seasons during trip dates. Format: Event name (dates) — description — website]
 COST: [number only]
 
-[Repeat ###DAY### for each remaining day using STANDARD format below]
+[Repeat ###DAY### for each remaining day using STANDARD format below. YOU MUST OUTPUT ALL DAYS TO THE LAST DAY.]
 
 STANDARD DAY FORMAT (Day 2 onwards):
 [CONTENT_DEPTH_PLACEHOLDER]
@@ -237,7 +216,6 @@ COST: [number only]
 ###TIPS###
 [One specific actionable tip per line — 6 tips total: transport apps, payment, etiquette, booking, safety, family tip if applicable]`;
 
-  // Replace placeholders with dynamic depth values
   const systemPromptFinal = systemPrompt
     .replace('[CONTENT_DEPTH_PLACEHOLDER]', contentDepthNote)
     .replace('[MORNING_PLACEHOLDER]', morningFmt)
@@ -249,6 +227,7 @@ COST: [number only]
   const userPrompt = `You are an expert travel planner with deep local knowledge of every destination worldwide. Create a warm, personalised, practical travel itinerary in PLAIN TEXT using the exact section markers in your instructions. Do NOT output JSON. Do NOT use markdown.
 
 TRIP: ${origin} to ${destination} | ${departDate} to ${returnDate} | ${nights} nights
+YOU MUST OUTPUT ALL ${nights + 1} DAYS (Day 1 through Day ${nights + 1}). Do not stop early.
 RETURN FLIGHT FROM: ${returnCity && returnCity !== destination ? returnCity.replace(/\s*\([A-Z]+\)/, '').trim() : destination.replace(/\s*\([A-Z]+\)/, '').trim().split(',')[0].trim()} back to ${origin}
 TRAVELLERS: ${adults} adults${hasChildren ? `, ${children} children (ages: ${childAges})` : ''}${hasInfants ? `, ${infants} infants` : ''}${hasSeniors ? `, ${seniors} seniors (ages: ${seniorAges})` : ''} | Total: ${totalPax} people
 BUDGET: ${budget} ${currency} | CLASS: ${travelClass} | ACCOMMODATION: ${accommodationLevel} ${accommodationType} preferred
@@ -273,7 +252,9 @@ TRAVEL DAY RULES:
 1. DAY 1 (ARRIVAL): Never plan full sightseeing. Always gentle and practical.
 2. CITY TRANSFER DAYS: MORNING = checkout + transport details (time, cost in ${currency}). AFTERNOON/EVENING = only activities AFTER arrival in new city.
 3. LAST DAY (${returnDate}): Morning activity + checkout. Afternoon = airport transfer (3hrs before international). Evening = in-flight.
-4. ANCHOR TRAVEL DAYS: Arrival day at anchor city follows rule 2.`;
+4. ANCHOR TRAVEL DAYS: Arrival day at anchor city follows rule 2.
+
+FINAL REMINDER: Output ALL ${nights + 1} DAY sections. Do not skip any day. Do not truncate at the end.`;
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
